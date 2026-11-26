@@ -19,6 +19,7 @@ import { h, modal, toast } from './dom';
 import { friendsModal } from './friends';
 import { coopHome, listenInvites } from './lobby';
 import { forgetRun, resumeSolo, savedRun, startDaily, startSolo } from './runner';
+import { warmUp } from './warm';
 import { gearCard, money, ornCard, perkLines, pts, statSummary, tierBand } from './widgets';
 
 export function garage(): void {
@@ -27,6 +28,7 @@ export function garage(): void {
   if (!demoScene()) demoLake({ seed: Math.floor(Math.random() * 1e6), look: session.profile.look });
   else demoScene()!.anglers[0]!.look = session.profile.look;
   if (session.online) listenInvites();
+  warmUp();
   const saved = savedRun();
   if (saved)
     setTimeout(() => {

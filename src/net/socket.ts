@@ -1,6 +1,6 @@
 // The one socket a signed-in tab keeps open to Shoallhell's server (game: 'sak'): presence for friends, invites,
 // the lobby room and the host/guest relay for the run.
-import { io, type Socket } from 'socket.io-client';
+import type { Socket } from 'socket.io-client';
 import { getToken, serverBase } from './api';
 
 export interface RoomPlayer {
@@ -82,7 +82,8 @@ export class Net {
   }
 
   private static async connect(): Promise<Net> {
-    const server = await serverBase();
+    // the socket library is only downloaded by players who go online (offline play never needs it)
+    const [{ io }, server] = await Promise.all([import('socket.io-client'), serverBase()]);
     const socket = io(server || window.location.origin, {
       path: '/games/shoallhell/socket.io',
       auth: { token: getToken(), game: 'sak' },

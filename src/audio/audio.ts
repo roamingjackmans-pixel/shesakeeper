@@ -78,6 +78,7 @@ class Audio {
     this.timer = window.setInterval(() => this.schedule(), 90);
     if (this.pendingMood !== 'none') this.music(this.pendingMood);
     this.ambience(this.ambWant);
+    if (this.warmLater) this.warm();
   }
 
   setVolumes(sfx: number, music: number): void {
@@ -269,6 +270,35 @@ class Audio {
         break;
     }
   }
+
+  /** compute every guitar note the music uses ahead of time, a few per idle moment (a new note mid-song otherwise
+   *  means building its string sound right then) */
+  warm(): void {
+    if (!this.ctx) {
+      this.warmLater = true;
+      return;
+    }
+    const freqs = new Set<number>();
+    for (const cfg of Object.values(MOODS)) {
+      const note = (deg: number, oct = 0) => cfg.root * Math.pow(2, (deg + oct * 12) / 12);
+      for (const ch of cfg.chords) {
+        freqs.add(note(ch[0]!, -1));
+        for (const d of ch) {
+          freqs.add(note(d));
+          freqs.add(note(d + 12));
+        }
+      }
+      for (const d of cfg.scale) freqs.add(note(d, 1));
+    }
+    const list = [...freqs];
+    const idle = (window as unknown as { requestIdleCallback?: (cb: (d: { timeRemaining(): number }) => void) => number }).requestIdleCallback ?? ((cb: (d: { timeRemaining(): number }) => void) => window.setTimeout(() => cb({ timeRemaining: () => 8 }), 80));
+    const step = (d: { timeRemaining(): number }): void => {
+      while (list.length && d.timeRemaining() > 5) this.string(list.shift()!);
+      if (list.length) idle(step);
+    };
+    idle(step);
+  }
+  private warmLater = false;
 
   // ------------------------------------------------------------------ music
 

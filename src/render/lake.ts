@@ -797,11 +797,14 @@ export class LakeScene implements Scene {
         if (b !== bi) continue;
         const drift = Math.sin(now * 0.3 + s.ph) * 0.6 + this.wind * now * 0.3;
         const x = ((s.x + drift + 70) % 140) - 70;
-        const p = project(x, s.z);
-        if (p.y < HORIZON + 84 || p.y > SHORE_Y) continue;
-        const w = s.w * p.s;
-        c.moveTo(p.x - w / 2, p.y);
-        c.lineTo(p.x + w / 2, p.y);
+        // project() inline: this runs a few hundred times a frame
+        const k = Z0 / (s.z + Z0);
+        const py = HORIZON + (SHORE_Y - HORIZON) * k;
+        if (py < HORIZON + 84 || py > SHORE_Y) continue;
+        const px = CX + x * PX * k;
+        const w = s.w * k;
+        c.moveTo(px - w / 2, py);
+        c.lineTo(px + w / 2, py);
       }
       c.stroke();
     }
