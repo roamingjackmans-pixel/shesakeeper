@@ -21,7 +21,10 @@ only (owner's choice). Online through **Shoallhell's server** (`C:\dev\Shoallhel
   same ornament (tests/core.test.ts checks thousands of rolls).
 - The catch bar's difficulty curve is tested with a bot that has a human reaction time (`LaggedEye`); after touching
   `src/core/catchbar.ts` keep `tests/core.test.ts` green.
-- Canvas: no `filter` / `shadowBlur`; static scenery is drawn once into layers (`render/canvas.ts` `layer()`).
+- Canvas: no `filter` / `shadowBlur`; static scenery is drawn once into layers (`render/canvas.ts` `layer()`). Don't
+  draw a full-screen layer that is mostly transparent every frame (the drive's dash was 33 ms a frame on weak GPUs).
+- Menu pictures (fish, ornaments, gear) are sprites copied into small canvases with `render/pics.ts`; never
+  `toDataURL` them. The canvas resolution is capped and drops by itself on slow machines (`render/canvas.ts`).
 
 ## Commands
 ```powershell
