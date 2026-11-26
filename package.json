@@ -1,0 +1,25 @@
+{
+  "name": "shesakeeper",
+  "private": true,
+  "version": "1.0.0",
+  "description": "She's A Keeper: a roguelite fishing game. Cast into bubbles, reel them in, buy gear and roll dash ornaments. Solo, daily, or 4-player online on the same lake. Accounts shared with Shoallhell.",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:client": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "balance": "vitest run tests/balance.test.ts --reporter=verbose"
+  },
+  "dependencies": {
+    "socket.io-client": "^4.8.4"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "typescript": "6.0.3",
+    "vite": "8.3.5",
+    "vitest": "5.1.0"
+  }
+}
