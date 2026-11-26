@@ -9,8 +9,7 @@ import type { Catch, HoleResult } from '../core/types';
 import { FISH } from '../data/fish';
 import { setScene } from '../render/canvas';
 import { DriveScene } from '../render/drive';
-import { fishImage } from '../render/fishart';
-import { ornamentImage } from '../render/ornart';
+import { fishPic, ornPic } from '../render/pics';
 import { ornamentById } from '../core/profile';
 import { session } from '../session';
 import { h } from './dom';
@@ -21,7 +20,7 @@ function catchRow(c: Catch): HTMLElement {
   return h(
     'div.card.row',
     { style: 'padding:6px 12px;gap:10px' },
-    h('img', { src: fishImage(c.id, 80, 40), style: 'width:80px;height:40px' }),
+    fishPic(c.id, 80, 40),
     h('div.col.grow', { style: 'gap:0' }, h('b', FISH[c.id]?.name ?? c.id), h('span.small.dim', `${Math.round(c.cm)} cm${c.q ? ` · ${'★'.repeat(c.q)} ${QUALITY_NAME[c.q]}` : ''}${c.mission ? ' · mission' : ''}${c.firstEver ? ' · NEW' : ''}`)),
     h('b.display', { style: 'font-size:22px' }, `+${pts(c.points)}`),
   );
@@ -160,7 +159,7 @@ export function resultsScreen(run: Run, o: { best?: Catch; dailyReward: Ornament
               { style: 'gap:8px' },
               o.best ? h('div', h('div.hud-label', 'Catch of the day'), catchRow(o.best)) : h('div.dim', 'No fish this run.'),
               h('div.row', { style: 'gap:10px' }, h('span.chip', `🐟 ${all.length} fish`), h('span.chip', `📖 ${newSpecies} new species`), h('span.chip', `💰 ${money(run.st.cash)} left unspent`)),
-              found.length ? h('div', h('div.hud-label', 'Ornaments found'), h('div.row.wrap', { style: 'gap:6px' }, ...found.map((x) => h('img', { src: ornamentImage(x, 64), title: x.name, style: 'width:64px;height:64px' })))) : '',
+              found.length ? h('div', h('div.hud-label', 'Ornaments found'), h('div.row.wrap', { style: 'gap:6px' }, ...found.map((x) => ornPic(x, 64, { title: x.name })))) : '',
               o.dailyReward ? h('div', h('div.hud-label', 'Daily reward'), ornCard(o.dailyReward, { compact: true })) : '',
             ),
             ranking ? h('div', { style: 'width:420px' }, ranking) : '',

@@ -11,10 +11,8 @@ import { GEAR, KIND_NAME, type GearKind } from '../data/gear';
 import { BIOMES, TIME_ICON, TIME_NAMES, WEATHER_ICON, WEATHER_NAMES } from '../data/spots';
 import { describeBonus } from '../core/stats';
 import { onTick, setScene } from '../render/canvas';
-import { fishImage } from '../render/fishart';
-import { gearImage } from '../render/gearart';
+import { fishPic, gearPic, ornPic } from '../render/pics';
 import { LakeScene } from '../render/lake';
-import { ornamentImage } from '../render/ornart';
 import { saveSoon, session } from '../session';
 import { h, modal } from './dom';
 import type { Run } from './runner';
@@ -61,7 +59,7 @@ export function loadoutScreen(run: Run): void {
             h(
               `div.item${id === cur ? '.sel' : ''}${mission.fits.includes(id) ? '.fits' : ''}`,
               { style: 'width:104px;flex:none', title: `${GEAR[id]!.name}: ${describeBonus(GEAR[id]!.bonus).join(', ') || 'no bonuses'}`, onclick: () => ((lo[kind] = id), (p.loadout[kind] = id), saveSoon(), audio.sfx('click'), render()) },
-              h('img', { src: gearImage(id, 64), style: 'width:56px;height:56px' }),
+              gearPic(id, 56),
               h('div.nm', { style: 'font-size:13px' }, GEAR[id]!.name),
             ),
           ),
@@ -89,7 +87,7 @@ export function loadoutScreen(run: Run): void {
           h('div.card', { style: 'background:#fff7e0' }, h('div.display', { style: 'font-size:28px;color:#d8642a' }, mission.title), h('div', { style: 'font-weight:700;font-size:18px' }, mission.text), h('div', `Goal: ${mission.goalText} → the whole hole scores ×1.5`), h('div.small.dim', { style: 'margin-top:4px' }, `💡 ${mission.hint}`)),
           run.st.cfg.mods.length ? h('div.col', { style: 'gap:4px' }, ...run.st.cfg.mods.map((m) => h('div.small', h('b', `${MOD[m]!.glyph} ${MOD[m]!.name}: `), MOD[m]!.text))) : '',
           h('b', 'Living here'),
-          h('div.row.wrap', { style: 'gap:4px' }, ...pool.map((s) => h('img', { src: fishImage(s.id, 84, 42, !p.log[s.id]), title: p.log[s.id] ? `${s.name} (${s.cm[0]}–${s.cm[1]} cm)` : 'Not caught yet', style: 'width:76px;height:38px;background:rgba(255,255,255,0.6);border-radius:8px' }))),
+          h('div.row.wrap', { style: 'gap:4px' }, ...pool.map((s) => fishPic(s.id, 76, 38, !p.log[s.id], { title: p.log[s.id] ? `${s.name} (${s.cm[0]}–${s.cm[1]} cm)` : 'Not caught yet', style: 'background:rgba(255,255,255,0.6);border-radius:8px' }))),
         ),
         // gear
         h(
@@ -114,7 +112,7 @@ export function loadoutScreen(run: Run): void {
               return h(
                 'div.item',
                 { style: 'width:108px;height:120px;padding:4px', title: o?.name ?? 'Empty', onclick: () => pickOrnament(run, i, render) },
-                o ? h('img', { src: ornamentImage(o, 84), style: 'width:84px;height:84px' }) : h('div', { style: 'width:84px;height:84px;display:flex;align-items:center;justify-content:center;font-size:40px;color:#ccc' }, '+'),
+                o ? ornPic(o, 84) : h('div', { style: 'width:84px;height:84px;display:flex;align-items:center;justify-content:center;font-size:40px;color:#ccc' }, '+'),
                 h('div.small', { style: 'font-weight:700' }, o ? `${'▲'.repeat(o.perks.length)}${o.perks.some((x) => x.c) ? '▼' : ''}` : 'empty'),
               );
             }),

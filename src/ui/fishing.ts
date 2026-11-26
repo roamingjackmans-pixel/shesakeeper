@@ -11,7 +11,7 @@ import { FISH } from '../data/fish';
 import { CHARM, MOD } from '../data/charms';
 import { BIOMES, TIME_ICON, TIME_NAMES, WEATHER_ICON, WEATHER_NAMES } from '../data/spots';
 import { gameCanvas, onTick, setScene } from '../render/canvas';
-import { fishImage } from '../render/fishart';
+import { fishPic } from '../render/pics';
 import { LakeScene, SHORE_Y, unproject, type LakeAngler } from '../render/lake';
 import { drawCastMeter, drawHookPrompt, drawReel } from '../render/reelpanel';
 import { audio } from '../audio/audio';
@@ -533,7 +533,7 @@ export class FishingSession {
     const stars = c.q > 0 ? h(`span.stars.q${c.q}`, '★'.repeat(c.q) + ` ${QUALITY_NAME[c.q]}`) : '';
     const card = h(
       'div.catch-card',
-      h('img', { src: fishImage(c.id, 170, 90) }),
+      fishPic(c.id, 170, 90),
       h(
         'div.col.grow',
         { style: 'gap:2px' },

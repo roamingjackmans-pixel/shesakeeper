@@ -12,7 +12,7 @@ import { api, type FriendsView } from '../net/api';
 import { CoopLink, type Msg } from '../net/coop';
 import { Net, type RoomView } from '../net/socket';
 import { HATS } from '../render/anglerart';
-import { ornamentImage } from '../render/ornart';
+import { ornPic } from '../render/pics';
 import { displayName, session } from '../session';
 import { demoLake, demoScene } from './demo';
 import { h, keypad, modal, toast } from './dom';
@@ -291,7 +291,7 @@ function lobbyScreen(): void {
                     h('div.row', h('span', { style: `width:20px;height:20px;border-radius:50%;border:3px solid var(--ink);background:${SEAT_COLORS[i]}` }), h('b.grow', { style: 'font-size:22px' }, pl.name), pl.id === L!.host ? h('span.chip.gold', 'Host') : '', pl.online ? '' : h('span.chip.bad', 'away')),
                     h('div.small.dim', `${HATS[pl.look?.hat ?? 0] ?? ''}`),
                     h('div.hud-label', 'Their dash'),
-                    h('div.row', { style: 'gap:4px' }, ...[0, 1, 2].map((k) => (pl.dash[k] ? h('img', { src: ornamentImage(pl.dash[k]!, 72), title: pl.dash[k]!.name, style: 'width:72px;height:72px' }) : h('div', { style: 'width:72px;height:72px;border:3px dashed var(--paper3);border-radius:12px' })))),
+                    h('div.row', { style: 'gap:4px' }, ...[0, 1, 2].map((k) => (pl.dash[k] ? ornPic(pl.dash[k]!, 72, { title: pl.dash[k]!.name }) : h('div', { style: 'width:72px;height:72px;border:3px dashed var(--paper3);border-radius:12px' })))),
                   ]
                 : h('div', { style: 'margin:auto;color:#fff;font-weight:700;text-align:center' }, 'Empty seat', h('div.small', 'Share the code or invite a friend')),
             ),

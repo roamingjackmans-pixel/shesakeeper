@@ -578,13 +578,13 @@ export function drawOrnament(c: CanvasRenderingContext2D, o: Pick<Ornament, 'typ
   c.restore();
 }
 
-const ornCache = new Map<string, string>();
+const ornCache = new Map<string, HTMLCanvasElement>();
 
 /**
- * A data-URL picture of an ornament for menus: drawn once per look (type, tint, tier) at one size, sharp up to 110 px
- * on screen; the page scales it with CSS. `_size` is only the size it will be shown at.
+ * An ornament for menus, drawn once per look (type, tint, tier) into a hidden canvas, sharp up to 110 px on screen.
+ * Pages copy it into their own small canvases (render/pics.ts).
  */
-export function ornamentImage(o: Pick<Ornament, 'type' | 'tint' | 'tier'>, _size = 96): string {
+export function ornamentSprite(o: Pick<Ornament, 'type' | 'tint' | 'tier'>): HTMLCanvasElement {
   const key = `${o.type}:${o.tint}:${o.tier}`;
   const hit = ornCache.get(key);
   if (hit) return hit;
@@ -596,7 +596,6 @@ export function ornamentImage(o: Pick<Ornament, 'type' | 'tint' | 'tier'>, _size
   x.scale((size * 2) / 110, (size * 2) / 110);
   x.translate(55, 96);
   drawOrnament(x, o, null, 0.3);
-  const url = c.toDataURL();
-  ornCache.set(key, url);
-  return url;
+  ornCache.set(key, c);
+  return c;
 }

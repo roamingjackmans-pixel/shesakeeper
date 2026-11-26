@@ -206,10 +206,10 @@ function bait(c: CanvasRenderingContext2D, g: Gear): void {
   }
 }
 
-const cache = new Map<string, string>();
+const cache = new Map<string, HTMLCanvasElement>();
 
-/** a data-URL picture of a piece of gear: drawn once, sharp up to 110 px on screen (`_size` is the size shown) */
-export function gearImage(id: string, _size = 80): string {
+/** a piece of gear, drawn once into a hidden canvas, sharp up to 110 px on screen (pages copy it: render/pics.ts) */
+export function gearSprite(id: string): HTMLCanvasElement {
   const key = id;
   const hit = cache.get(key);
   if (hit) return hit;
@@ -226,7 +226,6 @@ export function gearImage(id: string, _size = 80): string {
     else if (g.kind === 'lure') lure(x, g);
     else bait(x, g);
   }
-  const url = c.toDataURL();
-  cache.set(key, url);
-  return url;
+  cache.set(key, c);
+  return c;
 }

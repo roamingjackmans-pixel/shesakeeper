@@ -13,8 +13,7 @@ import { GEAR, KIND_NAME } from '../data/gear';
 import { describeBonus } from '../core/stats';
 import { layer, pixelRatio, setScene, type Scene } from '../render/canvas';
 import { INK } from '../render/fishart';
-import { gearImage } from '../render/gearart';
-import { ornamentImage } from '../render/ornart';
+import { gearPic, ornPic } from '../render/pics';
 import { forgetOrnament, saveSoon, session } from '../session';
 import { h, modal, toast } from './dom';
 import type { Run } from './runner';
@@ -219,13 +218,13 @@ export function shopScreen(run: Run): void {
       let lines: HTMLElement[] = [];
       if (it.kind === 'gear') {
         const g = GEAR[it.id]!;
-        img = h('img', { src: gearImage(it.id, 110) });
+        img = gearPic(it.id, 110);
         name = g.name;
         kind = `${KIND_NAME[g.kind]} · kept forever`;
         lines = [h('div.small.dim', g.blurb), ...describeBonus(g.bonus).map((t) => h('div.perk', h('span.pip', '▲'), t))];
       } else if (it.kind === 'ornament') {
         const o = it.orn!;
-        img = h('img', { src: ornamentImage(o, 110) });
+        img = ornPic(o, 110);
         name = o.name;
         kind = 'Dash ornament';
         lines = [h('div.row', { style: 'gap:6px;justify-content:center' }, tierBand(o)), ...perkLines(o, false)];

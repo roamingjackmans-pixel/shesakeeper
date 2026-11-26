@@ -8,9 +8,7 @@ import type { Ornament } from '../core/ornament';
 import { ALL_FISH, FISH } from '../data/fish';
 import { ALL_GEAR, BAITS, LURES, RODS, type Gear } from '../data/gear';
 import { TIERS } from '../data/perks';
-import { gearImage } from '../render/gearart';
-import { fishImage } from '../render/fishart';
-import { ornamentImage } from '../render/ornart';
+import { fishPic, gearPic, ornPic } from '../render/pics';
 import { drawAngler, HATS, HAT_COLORS, HAIRS, JACKETS, SKINS } from '../render/anglerart';
 import { api } from '../net/api';
 import { saveSoon, session, signOut } from '../session';
@@ -83,7 +81,7 @@ export function garage(): void {
             'div.panel',
             { style: 'padding:16px' },
             h('div.row', h('h3.grow', 'Your dash'), h('button.tiny', { onclick: () => glovebox() }, 'Change')),
-            h('div.row', { style: 'justify-content:space-around;margin-top:6px' }, ...dash.map((o) => (o ? h('img', { src: ornamentImage(o, 90), title: o.name, style: 'width:96px;height:96px' }) : h('div', { style: 'width:96px;height:96px;border:3px dashed var(--paper3);border-radius:16px' })))),
+            h('div.row', { style: 'justify-content:space-around;margin-top:6px' }, ...dash.map((o) => (o ? ornPic(o, 96, { title: o.name }) : h('div', { style: 'width:96px;height:96px;border:3px dashed var(--paper3);border-radius:16px' })))),
             h('div.small.dim', { style: 'margin-top:6px' }, `${p.ornaments.length}/${GLOVEBOX_MAX} ornaments in the glovebox`),
           ),
           h(
@@ -156,7 +154,7 @@ function tackleBox(tab: 'rod' | 'lure' | 'bait' = 'rod'): void {
           { style: 'grid-template-columns:repeat(4,110px)' },
           ...list.map((g) => {
             const own = p.owned.includes(g.id);
-            return h(`div.item${own ? '' : '.locked'}`, { onclick: () => pick(g) }, h('img', { src: gearImage(g.id, 64) }), h('div.nm', g.name), h('div.small.dim', own ? 'Owned' : g.special ? 'Earned' : `$${g.price}`));
+            return h(`div.item${own ? '' : '.locked'}`, { onclick: () => pick(g) }, gearPic(g.id, 64), h('div.nm', g.name), h('div.small.dim', own ? 'Owned' : g.special ? 'Earned' : `$${g.price}`));
           }),
         ),
         detail,
@@ -223,7 +221,7 @@ export function glovebox(onDone?: () => void): void {
               h(
                 `div.item.tier-${o.tier}${sel?.id === o.id ? '.sel' : ''}`,
                 { style: 'background:linear-gradient(180deg,#fff 60%,color-mix(in srgb,var(--tc) 45%,#fff));padding:6px', onclick: () => ((sel = o), audio.sfx('hover'), render()), title: o.name },
-                h('img', { src: ornamentImage(o, 64) }),
+                ornPic(o, 64),
                 h('div.small', { style: 'font-weight:700' }, `${'▲'.repeat(o.perks.length)}${o.perks.some((x) => x.c) ? ' ▼' : ''}`),
                 slotOf(o.id) >= 0 ? h('div', { style: 'position:absolute;top:-8px;left:-6px', class: 'badge new' }, `#${slotOf(o.id) + 1}`) : '',
                 o.fav ? h('div', { style: 'position:absolute;top:-8px;right:-6px', class: 'badge' }, '★') : '',
@@ -251,7 +249,7 @@ function fishLog(): void {
       h(
         'div.card.col',
         { style: 'gap:6px;align-items:center;text-align:center' },
-        h('img', { src: fishImage(id, 300, 150, !e), style: 'width:300px;height:150px' }),
+        fishPic(id, 300, 150, !e),
         h('b', { style: 'font-size:24px' }, e ? f.name : '???'),
         e ? h('div', f.blurb) : h('div.dim', 'Not caught yet.'),
         h('div.small.dim', `${f.biomes.length > 4 ? 'Every water' : f.biomes.join(', ')}${f.times ? ` · ${f.times.join(', ')}` : ''}`),
@@ -274,7 +272,7 @@ function fishLog(): void {
           { style: 'grid-template-columns:repeat(6,120px);max-height:640px;padding:6px 10px 10px 4px' },
           ...ALL_FISH.map((f) => {
             const e = p.log[f.id];
-            return h('div.item', { onclick: () => pick(f.id), style: f.id === 'marlene' ? 'background:#fff3c8' : '' }, h('img', { src: fishImage(f.id, 110, 56, !e), style: 'width:104px;height:52px' }), h('div.nm', { style: 'font-size:13px' }, e ? f.name : '???'), e ? h('div.small.dim', `${Math.round(e.best)} cm`) : '');
+            return h('div.item', { onclick: () => pick(f.id), style: f.id === 'marlene' ? 'background:#fff3c8' : '' }, fishPic(f.id, 104, 52, !e), h('div.nm', { style: 'font-size:13px' }, e ? f.name : '???'), e ? h('div.small.dim', `${Math.round(e.best)} cm`) : '');
           }),
         ),
         detail,

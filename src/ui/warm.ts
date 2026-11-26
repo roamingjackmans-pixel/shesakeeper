@@ -4,9 +4,9 @@
 import { audio } from '../audio/audio';
 import { ALL_FISH } from '../data/fish';
 import { ALL_GEAR } from '../data/gear';
-import { fishImage } from '../render/fishart';
-import { gearImage } from '../render/gearart';
-import { ornamentImage } from '../render/ornart';
+import { fishSprite } from '../render/fishart';
+import { gearSprite } from '../render/gearart';
+import { ornamentSprite } from '../render/ornart';
 import { session } from '../session';
 
 type Idle = (cb: (d: { timeRemaining(): number }) => void, o?: { timeout: number }) => number;
@@ -20,11 +20,11 @@ export function warmUp(): void {
   const p = session.profile;
   const jobs: (() => void)[] = [];
   for (const f of ALL_FISH) {
-    jobs.push(() => fishImage(f.id));
-    if (!p.log[f.id]) jobs.push(() => fishImage(f.id, 0, 0, true));
+    jobs.push(() => fishSprite(f.id));
+    if (!p.log[f.id]) jobs.push(() => fishSprite(f.id, true));
   }
-  for (const g of ALL_GEAR) jobs.push(() => gearImage(g.id));
-  for (const o of p.ornaments) jobs.push(() => ornamentImage(o));
+  for (const g of ALL_GEAR) jobs.push(() => gearSprite(g.id));
+  for (const o of p.ornaments) jobs.push(() => ornamentSprite(o));
   jobs.push(() => audio.warm());
   const step = (d: { timeRemaining(): number }): void => {
     // a few pictures per idle moment, never more than the browser says it can spare

@@ -5,8 +5,7 @@ import { BASE, derived, describeBonus, type Stats } from '../core/stats';
 import { CHARM } from '../data/charms';
 import { GEAR, KIND_NAME } from '../data/gear';
 import { ORN_TYPES, TIERS } from '../data/perks';
-import { gearImage } from '../render/gearart';
-import { ornamentImage } from '../render/ornart';
+import { gearPic, ornPic } from '../render/pics';
 import { h } from './dom';
 
 export function perkLines(o: Ornament, ranges = true): HTMLElement[] {
@@ -26,7 +25,7 @@ export function ornCard(o: Ornament, opts: { price?: number; extra?: (HTMLElemen
   return h(
     `div.card.tier-${o.tier}`,
     { style: `display:flex;gap:12px;align-items:flex-start;border-color:var(--ink);background:linear-gradient(180deg,#fff,#fff 70%,color-mix(in srgb,var(--tc) 35%,#fff))` },
-    h('img', { src: ornamentImage(o, 96), alt: '', style: `width:${opts.compact ? 72 : 96}px;height:${opts.compact ? 72 : 96}px;flex:none` }),
+    ornPic(o, opts.compact ? 72 : 96, { style: 'flex:none' }),
     h(
       'div.col',
       { style: 'gap:4px;min-width:0' },
@@ -44,7 +43,7 @@ export function gearCard(id: string, opts: { owned?: boolean; price?: number } =
   return h(
     'div.card',
     { style: 'display:flex;gap:12px;align-items:flex-start' },
-    h('img', { src: gearImage(id, 80), alt: '', style: 'width:84px;height:84px;flex:none' }),
+    gearPic(id, 84, { style: 'flex:none' }),
     h(
       'div.col',
       { style: 'gap:4px' },

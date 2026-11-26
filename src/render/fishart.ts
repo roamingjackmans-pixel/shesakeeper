@@ -349,15 +349,15 @@ function mulberry(a: number): () => number {
   };
 }
 
-const imgCache = new Map<string, string>();
+const spriteCache = new Map<string, HTMLCanvasElement>();
 
 /**
- * A data-URL picture of a fish for menus and cards. Drawn once per fish (and once more as a silhouette) at one size,
- * 2:1, sharp up to 300×150 on screen; the page scales it with CSS. `_w`/`_h` are only the size it will be shown at.
+ * A fish for menus and cards, drawn once per fish (and once more as a silhouette) into a hidden canvas, 2:1, sharp up
+ * to 300×150 on screen. Pages copy it into their own small canvases (render/pics.ts): no image encoding at all.
  */
-export function fishImage(id: string, _w = 160, _h = 80, silhouette = false): string {
+export function fishSprite(id: string, silhouette = false): HTMLCanvasElement {
   const key = `${id}:${silhouette}`;
-  const hit = imgCache.get(key);
+  const hit = spriteCache.get(key);
   if (hit) return hit;
   const sp = FISH[id];
   const c = document.createElement('canvas');
@@ -379,7 +379,6 @@ export function fishImage(id: string, _w = 160, _h = 80, silhouette = false): st
       x.fillRect(-w, -h, w * 2, h * 2);
     }
   }
-  const url = c.toDataURL();
-  imgCache.set(key, url);
-  return url;
+  spriteCache.set(key, c);
+  return c;
 }
