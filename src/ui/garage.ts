@@ -18,7 +18,7 @@ import { demoLake, demoScene } from './demo';
 import { h, modal, toast } from './dom';
 import { friendsModal } from './friends';
 import { coopHome, listenInvites } from './lobby';
-import { startDaily, startSolo } from './runner';
+import { forgetRun, resumeSolo, savedRun, startDaily, startSolo } from './runner';
 import { gearCard, money, ornCard, perkLines, pts, statSummary, tierBand } from './widgets';
 
 export function garage(): void {
@@ -27,6 +27,21 @@ export function garage(): void {
   if (!demoScene()) demoLake({ seed: Math.floor(Math.random() * 1e6), look: session.profile.look });
   else demoScene()!.anglers[0]!.look = session.profile.look;
   if (session.online) listenInvites();
+  const saved = savedRun();
+  if (saved)
+    setTimeout(() => {
+      const close = modal(
+        h(
+          'div.col',
+          { style: 'width:520px' },
+          h('h2', 'Pick up where you left off?'),
+          h('div', `Your ${saved.cfg.mode === 'daily' ? 'Daily Catch' : 'run'} is still going: hole ${saved.hole + 1} of ${saved.cfg.holes.length} (${saved.cfg.holes[saved.hole]?.name}), score ${pts(saved.score)}, ${money(saved.cash)} to spend.`),
+          saved.phase === 'fish' ? h('div.small.dim', 'The hole you were fishing starts again from the gear-up.') : '',
+          h('div.row', h('button', { onclick: () => (forgetRun(), close()) }, 'Start fresh'), h('div.grow'), h('button.primary.big', { onclick: () => (close(), resumeSolo(saved)) }, 'Resume')),
+        ),
+        { locked: true },
+      );
+    }, 300);
   show((root) => {
     const p = session.profile;
     const ownedGear = ALL_GEAR.filter((g) => p.owned.includes(g.id)).length;
@@ -56,7 +71,7 @@ export function garage(): void {
           big('Fish with friends', session.online ? 'Up to four anglers on one lake.' : 'Sign in to fish with friends.', 'teal', () => (session.online ? coopHome() : toast('Sign in to fish with friends (Settings → Sign in).', 'bad')), '🚚'),
           h('div.row', small('🧰 Tackle', () => tackleBox()), small('🧸 Glovebox', () => glovebox()), small('📖 Fish log', () => fishLog())),
           h('div.row', small('🧢 Angler', () => anglerScreen()), small('🏆 Records', () => records()), small('⚙ Settings', () => settings())),
-          session.online ? h('div.row', small('👥 Friends', () => friendsModal())) : '',
+          h('div.row', small('❓ How to play', () => howToPlay()), session.online ? small('👥 Friends', () => friendsModal()) : ''),
         ),
         h('div.grow'),
         h(
@@ -81,6 +96,34 @@ export function garage(): void {
       ),
     );
   });
+}
+
+// ------------------------------------------------------------------ how to play
+
+export function howToPlay(): void {
+  const sec = (icon: string, title: string, ...lines: string[]) =>
+    h('div.card.row', { style: 'align-items:flex-start;gap:14px;padding:12px 16px' }, h('span', { style: 'font-size:34px;line-height:1' }, icon), h('div.col', { style: 'gap:2px' }, h('b', { style: 'font-size:20px' }, title), ...lines.map((l) => h('div', { style: 'font-size:16px' }, l))));
+  const close = modal(
+    h(
+      'div.col',
+      { style: 'width:1000px;gap:10px' },
+      h('div.row', h('h2.grow', 'How to play'), h('button', { onclick: () => close() }, 'Got it')),
+      h(
+        'div.grid',
+        { style: 'grid-template-columns:1fr 1fr;gap:10px' },
+        sec('🎯', 'Aim and cast', 'Move the mouse to aim. Hold the button (or Space): the cast meter swings up and down. Let go to cast; the ring shows where it lands.', 'The very top of the meter is a Perfect Cast: farther, and better catches.'),
+        sec('🫧', 'Bubbles', 'Cast into a bubble spot and a fish bites in a second or two, and better fish live there. Dead centre is a Bullseye.', 'Each spot holds a few fish, then pops. With friends, it’s a race.'),
+        sec('❗', 'The bite', 'Little dips are nibbles: wait. When the bobber plunges and a ! appears, click before the ring runs out.', 'Click too early and you reel in for nothing.'),
+        sec('🟩', 'Reeling', 'Hold to lift the green bar, let go and it falls. Keep the fish inside: the meter on the right fills; outside it drains.', 'Never let it out for a Perfect catch. Grab treasure chests with the bar too.'),
+        sec('📋', 'Missions', 'Every hole has one (Small Fry, Trophy Hunt, Most Wanted…). Matching fish score its multiplier; hit the goal for ×1.5 on the whole hole.', 'Gear that suits it is marked ✓ when you gear up.'),
+        sec('🛒', 'The bait shop', 'Every point you catch is also a dollar this run. Buy gear (yours forever), dash ornaments, and run charms. Rerolls cost more each time.', 'Spending never lowers your score. Cash doesn’t carry over: spend it on the way home.'),
+        sec('🧸', 'Dash ornaments', 'Rolled relics with 1–3 perks. Strong rolls always bring a ▼ curse along. Three ride on your dash and apply at every hole.', 'Plastic, Brass, Silver, Gold, and Pearl (Hers).'),
+        sec('👑', 'Marlene', 'She can show up at any hole: watch for a golden ripple. Cast into it for a chance she bites.', 'She is the hardest fish there is. Bring your biggest catch bar.'),
+      ),
+      h('div.small.dim', 'Esc or ⏸ pauses a solo run. Right-click (or Esc) takes back a cast you’re charging or waiting on.'),
+    ),
+    { wide: true },
+  );
 }
 
 // ------------------------------------------------------------------ daily

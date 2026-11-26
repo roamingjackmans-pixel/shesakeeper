@@ -21,6 +21,8 @@ export const CX = 800;
 export const STAND_Z = -2.2;
 export const W = 1600;
 export const H = 900;
+/** seconds a landed fish takes to fly from the water to the angler's hands */
+const ARC_TIME = 0.45;
 
 export function project(x: number, z: number): { x: number; y: number; s: number } {
   const s = Z0 / (z + Z0);
@@ -50,6 +52,8 @@ export interface LakeAngler {
   lastPhase: string;
   shownCm: number;
   lure: string;
+  /** where the bobber was on screen while reeling (the catch flies from there) */
+  lastB?: { x: number; y: number; bx: number; bz: number };
 }
 
 interface Ripple {
@@ -191,6 +195,38 @@ export class LakeScene implements Scene {
   }
 
   private leaps: { x: number; z: number; t: number; id: string; len: number; dir: number; splashed: boolean }[] = [];
+  private arcs: { x0: number; y0: number; x1: number; y1: number; t: number; id: string; cm: number }[] = [];
+
+  private drawArcs(c: CanvasRenderingContext2D, dt: number, now: number): void {
+    for (let i = this.arcs.length - 1; i >= 0; i--) {
+      const a = this.arcs[i]!;
+      a.t += dt;
+      const u = a.t / ARC_TIME;
+      if (u >= 1) {
+        this.arcs.splice(i, 1);
+        continue;
+      }
+      const e = 1 - (1 - u) * (1 - u);
+      const x = a.x0 + (a.x1 - a.x0) * e;
+      const y = a.y0 + (a.y1 - a.y0) * e - Math.sin(Math.PI * u) * 140;
+      const sp = FISH[a.id]!;
+      const len = Math.max(46, Math.min(240, a.cm * 1.4)) * (0.55 + 0.45 * u);
+      c.save();
+      c.translate(x, y);
+      c.rotate(-1.2 + u * 1.2 + Math.sin(now * 20) * 0.15);
+      drawFish(c, sp, len, { wag: Math.sin(now * 30), glow: sp.id === 'marlene' });
+      c.restore();
+      // a trail of drips
+      c.fillStyle = 'rgba(230,245,255,0.8)';
+      for (let k = 1; k <= 3; k++) {
+        const uu = Math.max(0, u - k * 0.06);
+        const ee = 1 - (1 - uu) * (1 - uu);
+        c.beginPath();
+        c.arc(a.x0 + (a.x1 - a.x0) * ee, a.y0 + (a.y1 - a.y0) * ee - Math.sin(Math.PI * uu) * 140 + k * 6, 3.5 - k * 0.8, 0, Math.PI * 2);
+        c.fill();
+      }
+    }
+  }
 
   private drawLeaps(c: CanvasRenderingContext2D, dt: number, now: number): void {
     for (let i = this.leaps.length - 1; i >= 0; i--) {
@@ -724,6 +760,7 @@ export class LakeScene implements Scene {
     if (this.guide && !this.demo) this.drawGuide(c, now);
     this.drawLeaps(c, dt, now);
     this.drawBobbersAndAnglers(c, dt, now);
+    this.drawArcs(c, dt, now);
     this.drawParticles(c, dt);
     this.drawWeather(c, dt, now);
     this.drawFloaters(c, dt);
@@ -1002,9 +1039,19 @@ export class LakeScene implements Scene {
     for (const a of this.anglers) {
       const v = a.view;
       if (a.lastPhase !== v.phase) {
+        // a fish just came out of the water: it flies up into the angler's hands
+        if (v.phase === 'landing' && a.lastB && FISH[v.fish]) {
+          const st = this.standAt(v.x);
+          this.arcs.push({ x0: a.lastB.x, y0: a.lastB.y, x1: st.x, y1: st.y - 190, t: 0, id: v.fish, cm: a.shownCm || (FISH[v.fish]!.cm[0] + FISH[v.fish]!.cm[1]) / 2 });
+          this.splash(a.lastB.bx, a.lastB.bz, 16);
+        }
         a.lastPhase = v.phase;
         a.pt = 0;
       } else a.pt += dt;
+      if (v.phase === 'reeling') {
+        const b = this.bobberScreen(v);
+        a.lastB = { x: b.x, y: b.y, bx: v.bx, bz: v.bz };
+      }
       if (v.phase === 'flying' || v.phase === 'waiting' || v.phase === 'bite' || v.phase === 'reeling' || v.phase === 'reelin') {
         const b = this.bobberScreen(v);
         if (v.phase === 'flying') {
@@ -1024,7 +1071,8 @@ export class LakeScene implements Scene {
       const v = a.view;
       c.save();
       c.translate(st.x, st.y);
-      const tip = drawAngler(c, a.look, { pose: poseFor(v.phase), aim: v.aim, power: v.power, pt: a.pt, now, fy: v.fy, fish: v.phase === 'landing' ? v.fish : undefined, fishCm: a.shownCm });
+      const holding = v.phase === 'landing' && a.pt >= ARC_TIME;
+      const tip = drawAngler(c, a.look, { pose: poseFor(v.phase), aim: v.aim, power: v.power, pt: a.pt, now, fy: v.fy, fish: holding ? v.fish : undefined, fishCm: a.shownCm });
       c.restore();
       const tx = st.x + tip.tx;
       const ty = st.y + tip.ty;

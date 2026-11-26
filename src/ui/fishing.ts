@@ -17,7 +17,7 @@ import { drawCastMeter, drawHookPrompt, drawReel } from '../render/reelpanel';
 import { audio } from '../audio/audio';
 import { session, saveSoon } from '../session';
 import { stageScale } from './stage';
-import { h } from './dom';
+import { h, modal } from './dom';
 import { charmIcon, money, pts } from './widgets';
 
 export interface SeatInfo {
@@ -59,6 +59,8 @@ export interface FishingOpts {
   onDone: () => void;
   /** co-op: tell the host (or everyone) */
   send?: (msg: Record<string, unknown>) => void;
+  /** the player chose to quit the run (solo) or leave the game (co-op) */
+  onQuit?: () => void;
 }
 
 const TIPS: Record<string, string> = {
@@ -111,7 +113,7 @@ export class FishingSession {
     if (o.authority) {
       const iv = window.setInterval(() => {
         const now = performance.now();
-        if (now - this.lastTick > 300 && !this.ended) {
+        if (now - this.lastTick > 300 && !this.ended && !this.paused) {
           this.world.update(Math.min(5, (now - this.lastTick) / 1000));
           this.lastTick = now;
         }
@@ -142,7 +144,7 @@ export class FishingSession {
       this.mouse = { x: (e.clientX - r.left) / s, y: (e.clientY - r.top) / s };
     };
     const down = (e: PointerEvent) => {
-      if ((e.target as HTMLElement).closest('button, .modal-back')) return;
+      if (this.paused || (e.target as HTMLElement).closest('button, .modal-back')) return;
       toStage(e);
       if (e.button === 2) {
         this.input.cancel = true;
@@ -158,12 +160,17 @@ export class FishingSession {
       this.input.held = false;
     };
     const kd = (e: KeyboardEvent) => {
-      if (e.repeat) return;
+      if (e.repeat || this.paused) return;
       if (e.code === 'Space') {
         e.preventDefault();
         this.input.pressed = true;
         this.input.held = true;
-      } else if (e.code === 'Escape') this.input.cancel = true;
+      } else if (e.code === 'Escape') {
+        // Escape takes back a cast you're charging or waiting on; otherwise it opens the menu
+        const ph = this.angler.phase;
+        if (ph === 'charging' || ph === 'waiting') this.input.cancel = true;
+        else if (!document.querySelector('.modal-back')) this.pauseMenu();
+      }
     };
     const ku = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
@@ -202,9 +209,52 @@ export class FishingSession {
   // ------------------------------------------------------------------ every frame
 
   private lastTick = performance.now();
+  /** solo only: the menu is open and the lake stands still */
+  private paused = false;
+
+  pauseMenu(): void {
+    const solo = !this.o.send;
+    if (solo) this.paused = true;
+    this.input.held = false;
+    const p = session.profile;
+    const slider = (label: string, v: number, set: (x: number) => void) => {
+      const inp = h('input', { type: 'range', min: '0', max: '100', value: String(Math.round(v * 100)), style: 'flex:1;padding:0' }) as HTMLInputElement;
+      inp.addEventListener('input', () => (set(Number(inp.value) / 100), audio.setVolumes(p.settings.sfx, p.settings.music)));
+      inp.addEventListener('change', () => saveSoon());
+      return h('div.row', h('b', { style: 'width:90px' }, label), inp);
+    };
+    const close = modal(
+      h(
+        'div.col',
+        { style: 'width:440px' },
+        h('h2', solo ? 'Paused' : 'Menu'),
+        solo ? '' : h('div.small.dim', 'The lake keeps going for everyone else.'),
+        slider('Sound', p.settings.sfx, (x) => (p.settings.sfx = x)),
+        slider('Music', p.settings.music, (x) => (p.settings.music = x)),
+        h('button.primary.big', { onclick: () => close() }, 'Back to fishing'),
+        h(
+          'button.red',
+          {
+            onclick: () => {
+              close();
+              this.o.onQuit?.();
+            },
+          },
+          solo ? 'Quit this run' : 'Leave the game',
+        ),
+        h('div.small.dim', solo ? 'Quitting ends the run here. Anything you bought is still yours.' : 'Your catches and purchases so far are saved.'),
+      ),
+      {
+        onClose: () => {
+          this.paused = false;
+          this.lastTick = performance.now();
+        },
+      },
+    );
+  }
 
   private tick(dt: number): void {
-    if (this.ended) return;
+    if (this.ended || this.paused) return;
     this.lastTick = performance.now();
     if (this.o.authority) this.world.update(dt);
     else this.world.tick(dt);
@@ -405,7 +455,8 @@ export class FishingSession {
       'div.hud-box.mission',
       h('div.row', { style: 'gap:8px' }, h('span.title', mission.title), h('span.chip', `×${+missionMultFor(mission, this.o.stats, !!this.world.flags.missionDouble).toFixed(2)}`)),
       h('div', { style: 'font-weight:600;font-size:16px' }, mission.text),
-      h('div.row', { style: 'gap:8px' }, this.els.pips, h('span.small.dim', `${mission.goalText} → hole ×1.5`)),
+      h('div.row', { style: 'gap:8px' }, this.els.pips, (this.els.count = h('b', { style: 'font-size:18px' }))),
+      h('div.small.dim', `${mission.goalText} → hole ×1.5`),
     );
     this.els.board = h('div.board');
     const charms = this.o.charms.length ? h('div.row', { style: 'gap:6px;position:absolute;left:20px;bottom:20px;pointer-events:auto' }, ...this.o.charms.map((c) => charmIcon(c, true))) : '';
@@ -418,14 +469,15 @@ export class FishingSession {
         h('div.hud-box', h('div.hud-label', `${BIOMES[s.biome].name} · ${TIME_ICON[s.time]} ${TIME_NAMES[s.time]} · ${WEATHER_ICON[s.weather]} ${WEATHER_NAMES[s.weather]}`), h('div.row', { style: 'gap:10px' }, this.els.clock, h('div.col', { style: 'gap:0' }, h('b', s.name), h('span.small.dim', `Hole ${s.idx + 1} of 2`)))),
         this.els.mission,
         h('div.grow'),
-        h('div.col', { style: 'gap:8px;align-items:flex-end' }, h('div.hud-box', { style: 'text-align:right' }, h('div.hud-label', 'Score'), this.els.score, h('div.row', { style: 'justify-content:flex-end;gap:10px' }, this.els.streak, this.els.cash)), this.o.board ? h('div.hud-box', this.els.board) : ''),
+        h('div.col', { style: 'gap:8px;align-items:flex-end' }, h('div.row', { style: 'gap:8px;align-items:flex-start' }, h('div.hud-box', { style: 'text-align:right' }, h('div.hud-label', 'Score'), this.els.score, h('div.row', { style: 'justify-content:flex-end;gap:10px' }, this.els.streak, this.els.cash)), h('button.tiny', { style: 'pointer-events:auto;font-size:20px;padding:4px 12px', title: 'Menu (Esc)', 'aria-label': 'Menu', onclick: () => this.pauseMenu() }, '⏸')), this.o.board ? h('div.hud-box', this.els.board) : ''),
       ),
       charms,
       mods,
       (this.els.feed = h('div.feed')),
     );
     root.appendChild(this.hud);
-    for (let i = 0; i < mission.goal; i++) this.els.pips.appendChild(h('i'));
+    // a pip per fish for small goals; a counter for big ones
+    if (mission.goal <= 8) for (let i = 0; i < mission.goal; i++) this.els.pips.appendChild(h('i'));
   }
 
   private set(key: string, v: string, apply: (el: HTMLElement, v: string) => void = (el, x) => (el.textContent = x)): void {
@@ -446,6 +498,7 @@ export class FishingSession {
     this.set('pips', String(got), () => {
       const goal = this.o.spec.mission.goal;
       [...this.els.pips!.children].forEach((p, i) => p.classList.toggle('on', i < got));
+      this.els.count!.textContent = goal > 8 || got >= goal ? `${Math.min(got, goal)}/${goal}${got >= goal ? ' ✓' : ''}` : '';
       this.els.mission!.classList.toggle('done', got >= goal);
     });
     if (this.o.board) {

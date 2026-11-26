@@ -70,6 +70,11 @@ function teardown(): void {
   L = null;
 }
 
+/** leave the lobby (and any run under way) and go back to the garage */
+export function leaveCoop(): void {
+  leaveLobby();
+}
+
 function leaveLobby(): void {
   currentRun()?.dispose();
   net?.leave();

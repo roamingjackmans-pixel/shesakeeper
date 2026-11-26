@@ -137,6 +137,7 @@ export class Run {
     }
     const secs = PHASE_SECONDS[phase];
     this.deadline = !this.solo && secs ? Date.now() + (ms ?? secs * 1000) : this.solo && phase === 'drive' ? Date.now() + secs! * 1000 : 0;
+    if (this.solo) keepRun(phase === 'results' ? null : this.st);
     if (phase === 'drive') this.driveScreen();
     else if (phase === 'loadout') loadoutScreen(this);
     else if (phase === 'fish') this.fishScreen();
@@ -255,6 +256,7 @@ export class Run {
         board: this.solo ? undefined : () => this.players.map((p) => ({ id: p.id, name: p.name, color: p.color, score: p.id === this.me ? this.st.score + (this.fishing?.angler.points ?? 0) : p.score })),
         onEvent: (e, a) => this.onFishEvent(e, a),
         onDone: () => this.fishDone(),
+        onQuit: () => (this.solo ? this.leave() : void import('./lobby').then((m) => m.leaveCoop())),
         send: this.link ? (m) => this.link!.send(m) : undefined,
       });
       if (this.role === 'host') {
@@ -395,8 +397,17 @@ export class Run {
   }
 
   leave(): void {
+    if (this.solo) keepRun(null);
     this.dispose();
     garage();
+  }
+
+  /** pick a saved run back up (after a refresh): a hole that was being fished starts again at its gear-up */
+  resume(st: RunState): void {
+    stopDemo();
+    this.st = st;
+    const phase: RunPhase = st.phase === 'fish' ? 'loadout' : st.phase;
+    this.enter(phase);
   }
 
   // ------------------------------------------------------------------ co-op
@@ -529,6 +540,42 @@ let current: Run | null = null;
 
 export function currentRun(): Run | null {
   return current;
+}
+
+// ------------------------------------------------------------------ a solo run survives a refresh
+
+const RESUME_KEY = 'sak.run';
+
+function keepRun(st: RunState | null): void {
+  try {
+    if (st) sessionStorage.setItem(RESUME_KEY, JSON.stringify({ st, user: session.user?.id ?? 'local', at: Date.now() }));
+    else sessionStorage.removeItem(RESUME_KEY);
+  } catch {
+    /* private window */
+  }
+}
+
+/** a run this tab was in the middle of, if any (and it belongs to whoever is signed in) */
+export function savedRun(): RunState | null {
+  try {
+    const raw = JSON.parse(sessionStorage.getItem(RESUME_KEY) || 'null') as { st: RunState; user: string; at: number } | null;
+    if (!raw?.st?.cfg?.holes?.length || raw.user !== (session.user?.id ?? 'local') || Date.now() - raw.at > 6 * 3600 * 1000) return null;
+    if (raw.st.cfg.mode === 'coop' || raw.st.phase === 'results') return null;
+    return raw.st;
+  } catch {
+    return null;
+  }
+}
+
+export function forgetRun(): void {
+  keepRun(null);
+}
+
+export function resumeSolo(st: RunState): void {
+  current?.dispose();
+  const run = new Run(st.cfg, 'solo', session.user?.id ?? 'local', null, []);
+  current = run;
+  run.resume(st);
 }
 
 export function startSolo(cfg?: RunConfig): void {
