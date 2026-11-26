@@ -39,6 +39,8 @@ export async function boot(): Promise<void> {
     toast((e as Error).message, 'bad', 5000);
   }
   titleScreen(state !== 'none');
+  // signed in: hear invites, and if this tab was in a lobby before a refresh, go straight back to it
+  if (state === 'online') checkInvites();
 }
 
 export function titleScreen(signedIn: boolean): void {
@@ -134,5 +136,4 @@ export function authScreen(): void {
     );
     setTimeout(() => email.focus(), 50);
   });
-  void checkInvites;
 }
