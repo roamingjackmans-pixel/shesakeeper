@@ -582,7 +582,7 @@ input:focus {
 .hint-bar {
   position: absolute;
   left: 50%;
-  bottom: 22px;
+  bottom: 62px;
   transform: translateX(-50%);
   background: rgba(27, 26, 46, 0.85);
   color: #fff;

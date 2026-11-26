@@ -5,7 +5,7 @@ import { GAME_VERSION } from './version';
 import { mountCanvas } from './render/canvas';
 import { restore, session, playOffline, signIn, signUp } from './session';
 import { demoLake } from './ui/demo';
-import { h, stage, toast } from './ui/dom';
+import { closeModals, h, stage, toast } from './ui/dom';
 import { garage } from './ui/garage';
 import { checkInvites } from './ui/lobby';
 
@@ -22,7 +22,7 @@ export function show(build: (root: HTMLElement) => void | (() => void)): void {
   c?.();
   const root = ui();
   for (const el of [...root.children]) if (el.id !== 'toasts') el.remove();
-  for (const m of stage().querySelectorAll('.modal-back')) m.remove();
+  closeModals();
   const r = build(root);
   if (typeof r === 'function') cleanup = r;
 }

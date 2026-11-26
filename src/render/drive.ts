@@ -18,6 +18,10 @@ const W = 1600;
 const H = 900;
 const VP = { x: 800, y: 350 };
 const ROAD_Y = 640;
+const FRAME = '#1e2026';
+/** where the dash layer starts, and how tall the roof strip is */
+const DASH_Y = 600;
+const TOP_H = 140;
 
 function dashTop(x: number): number {
   const u = (x - 800) / 800;
@@ -40,6 +44,9 @@ export class DriveScene implements Scene {
   private shakeY = 0;
   private bg: HTMLCanvasElement | null = null;
   private dash: HTMLCanvasElement | null = null;
+  private top: HTMLCanvasElement | null = null;
+  private radioStrip: HTMLCanvasElement | null = null;
+  private radioW = 1;
   private dashFor = '';
   private signZ = 34;
   private dashScroll = 0;
@@ -72,6 +79,8 @@ export class DriveScene implements Scene {
   resize(): void {
     this.bg = null;
     this.dash = null;
+    this.top = null;
+    this.radioStrip = null;
   }
 
   flick(si: number, oi: number): void {
@@ -141,19 +150,20 @@ export class DriveScene implements Scene {
 
   private buildDash(): void {
     this.dashFor = this.sections.map((s) => s.name).join('|');
-    this.dash = layer(W, H, (c) => {
-      // windshield frame
-      c.fillStyle = '#1e2026';
+    // the roof edge and the mirror: a strip across the top (small, mostly opaque)
+    this.top = layer(W, TOP_H, (c) => {
+      c.fillStyle = FRAME;
       c.beginPath();
-      c.rect(0, 0, W, H);
-      c.moveTo(70, 70);
-      c.lineTo(70, 640);
-      c.lineTo(W - 70, 640);
+      c.moveTo(0, 0);
+      c.lineTo(W, 0);
+      c.lineTo(W, TOP_H);
+      c.lineTo(W - 70, TOP_H);
       c.lineTo(W - 70, 70);
       c.quadraticCurveTo(W / 2, 30, 70, 70);
+      c.lineTo(70, TOP_H);
+      c.lineTo(0, TOP_H);
       c.closePath();
-      c.fill('evenodd');
-      // rear-view mirror
+      c.fill();
       c.fillStyle = '#2a2c34';
       c.fillRect(W / 2 - 6, 40, 12, 40);
       c.beginPath();
@@ -166,6 +176,13 @@ export class DriveScene implements Scene {
       c.beginPath();
       c.roundRect(W / 2 - 118, 80, 236, 42, 12);
       c.fill();
+    });
+    // the dash itself: only the bottom of the screen (a full-screen layer, mostly see-through, cost a full-screen blit
+    // every frame)
+    this.dash = layer(W, H - DASH_Y, (c) => {
+      c.translate(0, -DASH_Y);
+      c.fillStyle = FRAME;
+      c.fillRect(0, 640, W, 40);
       // the dash
       c.fillStyle = '#2e3a40';
       c.strokeStyle = INK;
@@ -263,10 +280,12 @@ export class DriveScene implements Scene {
       for (const row of this.wobs) for (const w of row) bump(w, s * speed);
     }
     this.shakeY *= Math.pow(0.02, dt);
-    const sy = Math.sin(now * 40) * this.shakeY;
     const pr = pixelRatio();
+    // whole device pixels only: a fractional offset makes every big image get resampled
+    const sy = Math.round(Math.sin(now * 40) * this.shakeY * pr) / pr;
+    const half = Math.round(sy * 0.5 * pr) / pr;
     c.save();
-    c.translate(0, sy * 0.5);
+    c.translate(0, half);
     c.drawImage(this.bg!, 0, 0, this.bg!.width / pr, this.bg!.height / pr);
     // road stripes
     this.dashScroll = (this.dashScroll + dt * speed * 2.2) % 1;
@@ -303,10 +322,14 @@ export class DriveScene implements Scene {
       if (this.signZ > 0.6) this.sign(c);
     }
     c.restore();
-    // the cab
+    // the cab: roof strip, pillars, dash
     c.save();
     c.translate(0, sy);
-    c.drawImage(this.dash!, 0, 0, this.dash!.width / pr, this.dash!.height / pr);
+    c.drawImage(this.top!, 0, 0, W, TOP_H);
+    c.fillStyle = FRAME;
+    c.fillRect(0, TOP_H - 1, 70, 642 - TOP_H);
+    c.fillRect(W - 70, TOP_H - 1, 70, 642 - TOP_H);
+    c.drawImage(this.dash!, 0, DASH_Y, W, H - DASH_Y);
     // gauge needles
     for (const [gx, v] of [
       [250, 0.55 * speed + Math.sin(now * 7) * 0.02],
@@ -320,19 +343,25 @@ export class DriveScene implements Scene {
       c.lineTo(gx + Math.cos(a) * 44, 770 + Math.sin(a) * 44);
       c.stroke();
     }
-    // the radio's scrolling text
+    // the radio's scrolling text: drawn once into a strip, then only the window that shows is copied each frame
     c.save();
-    c.beginPath();
-    c.rect(W / 2 - 146, 758, 292, 36);
-    c.clip();
-    c.font = '700 22px "Courier New", monospace';
-    c.fillStyle = '#7cff9a';
-    c.textAlign = 'left';
-    const text = `📻 KEEP 101.5 ·  ${this.radio}  ·  `;
-    const tw = c.measureText(text).width;
-    const off = (now * 90) % tw;
-    c.fillText(text, W / 2 - 146 - off, 784);
-    c.fillText(text, W / 2 - 146 - off + tw, 784);
+    if (!this.radioStrip) {
+      const text = `📻 KEEP 101.5 ·  ${this.radio}  ·  `;
+      const m = document.createElement('canvas').getContext('2d')!;
+      m.font = '700 22px "Courier New", monospace';
+      const tw = Math.ceil(m.measureText(text).width);
+      this.radioStrip = layer(tw * 2, 36, (x) => {
+        x.font = '700 22px "Courier New", monospace';
+        x.fillStyle = '#7cff9a';
+        x.textAlign = 'left';
+        x.fillText(text, 0, 26);
+        x.fillText(text, tw, 26);
+      });
+      this.radioW = tw;
+    }
+    const off = (now * 90) % this.radioW;
+    const sw = this.radioStrip.width / (this.radioW * 2);
+    c.drawImage(this.radioStrip, off * sw, 0, 292 * sw, this.radioStrip.height, W / 2 - 146, 758, 292, 36);
     c.restore();
     // ornaments
     this.hits = [];

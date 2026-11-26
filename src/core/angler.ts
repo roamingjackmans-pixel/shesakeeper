@@ -148,7 +148,11 @@ export class Angler {
       // the hole is over: finish a fish on the line, drop anything else
       if (this.phase === 'reeling') {
         this.overT += dt;
-        if (this.overT > 25 && this.bar) this.bar.progress = 0;
+        // 25 seconds after the whistle the fish wins, wherever it is
+        if (this.overT > 25 && this.fish) {
+          this.escaped(ev);
+          return ev;
+        }
       } else if (this.phase !== 'landing' || this.pt > 1.2) {
         this.go('done');
         this.fish = null;
@@ -418,6 +422,16 @@ export class Angler {
       ev.push({ k: 'snap' });
       this.go('snapped');
     } else this.go('reelin');
+  }
+
+  /** co-op: someone else's claim on Her reached the host first, so she isn't on our line after all */
+  forfeitLegend(): boolean {
+    if (this.fish?.sp.id !== 'marlene' || (this.phase !== 'bite' && this.phase !== 'reeling')) return false;
+    this.fish = null;
+    this.bar = null;
+    this.dip = 0;
+    this.go('reelin');
+    return true;
   }
 
   view(): AnglerView {

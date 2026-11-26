@@ -11,6 +11,7 @@ import { HoleWorld } from '../src/core/world';
 import { CURSE_BY_KEY, GOOD_BY_KEY } from '../src/data/perks';
 import { MOD } from '../src/data/charms';
 import { STARTER } from '../src/data/gear';
+import { FISH, MARLENE } from '../src/data/fish';
 import { Bot } from '../src/core/bot';
 
 const DT = 1 / 60;
@@ -175,6 +176,45 @@ describe('a whole hole, played by a bot', () => {
     console.log(`starter gear: ${avg.toFixed(1)} fish, ${Math.round(avgPts)} points per hole (min ${Math.min(...pts)}, max ${Math.max(...pts)})`);
     expect(avg).toBeGreaterThan(10);
     expect(avg).toBeLessThan(30);
+  });
+});
+
+describe('regressions', () => {
+  it('a hole ends even if the fish never leaves the bar after the whistle', () => {
+    const hole = { ...buildRun(5, 'solo', []).holes[0]!, seconds: 5 };
+    const stats = loadoutStats({ ...STARTER, dash: [], charms: [] }, [], []);
+    const world = new HoleWorld(hole, []);
+    const a = new Angler({ x: 0, seed: 9, stats, hole, mods: [], charms: [] });
+    // hook something, then hold the bar exactly on the fish forever
+    a.phase = 'bite' as typeof a.phase;
+    a.fish = { sp: { ...FISH.bluegill!, diff: 0 }, cm: 20 };
+    a.update(DT, { held: false, pressed: true, released: false, cancel: false, aim: 0 }, world);
+    expect(a.phase).toBe('reeling');
+    a.bar!.progress = 0.5;
+    let t = 0;
+    while (a.phase !== 'done' && t < 60) {
+      world.update(DT);
+      if (a.bar) {
+        a.bar.barPos = Math.max(0, Math.min(1 - a.bar.bar, a.bar.fishPos - a.bar.bar / 2));
+        a.bar.progress = 0.5;
+      }
+      a.update(DT, { held: false, pressed: false, released: false, cancel: false, aim: 0 }, world);
+      t += DT;
+    }
+    expect(a.phase).toBe('done');
+    expect(t).toBeLessThan(35);
+  });
+
+  it('forfeiting Her (another angler hooked her first) clears the line', () => {
+    const hole = buildRun(6, 'solo', []).holes[0]!;
+    const stats = loadoutStats({ ...STARTER, dash: [], charms: [] }, [], []);
+    const a = new Angler({ x: 0, seed: 3, stats, hole, mods: [], charms: [] });
+    expect(a.forfeitLegend()).toBe(false);
+    a.phase = 'reeling' as typeof a.phase;
+    a.fish = { sp: MARLENE, cm: 250 };
+    expect(a.forfeitLegend()).toBe(true);
+    expect(a.fish).toBe(null);
+    expect(a.phase).toBe('reelin');
   });
 });
 

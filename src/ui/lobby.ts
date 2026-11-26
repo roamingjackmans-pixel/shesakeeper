@@ -178,8 +178,11 @@ function wire(): void {
             pl.name = String(info.name || pl.name).slice(0, 20);
             pl.online = true;
           }
-          if (L.inRun && !currentRun()?.players.some((p) => p.id === from)) link!.send({ t: 'busy', to: from });
-          else link!.send(lobbyMsg());
+          if (L.inRun) {
+            // they came back mid-run (a refresh): their run is gone, so the run stops waiting for them; they join the next
+            currentRun()?.dropPlayer(from);
+            link!.send({ t: 'busy', to: from });
+          } else link!.send(lobbyMsg());
           rerender?.();
         }
         return;
@@ -354,7 +357,9 @@ export function backToLobby(): void {
   run?.dispose();
   if (!L || !link) return void garage();
   L.inRun = false;
-  L.players = L.players.map((p) => (p.id === me() ? { ...p, ...myInfo() } : p));
+  // only the people still in the room keep their seats
+  const present = new Set((net?.room?.players ?? []).map((p) => p.userId));
+  L.players = L.players.filter((p) => p.id === me() || present.has(p.id)).map((p) => (p.id === me() ? { ...p, ...myInfo() } : p));
   link.send({ t: 'lobby-back' });
   link.send(lobbyMsg());
   lobbyScreen();
@@ -385,9 +390,20 @@ export function listenInvites(): void {
               .reclaim(saved.code)
               .then((room) => {
                 teardown();
-                L = { code: room.code, host: me(), players: [{ ...myInfo(), slot: 0, online: true }], mods: [], inRun: false };
+                // everyone still in the room gets their seat back (their looks arrive with their hello)
+                const others = room.players.filter((p) => p.userId !== me());
+                L = {
+                  code: room.code,
+                  host: me(),
+                  players: [{ ...myInfo(), slot: 0, online: true }, ...others.slice(0, 3).map((p, i) => ({ id: p.userId, name: p.name, look: { hat: 0, hatColor: i + 1, jacket: i + 1, skin: 1, hair: 0 }, dash: [], slot: i + 1, online: p.online, lure: 'bobber' }))],
+                  mods: [],
+                  inRun: false,
+                };
                 link = new CoopLink(n, 'host', me());
                 wire();
+                // a run the host was in is gone: call everyone back to the lobby
+                link.send({ t: 'lobby-back' });
+                link.send(lobbyMsg());
                 lobbyScreen();
               })
               .catch(() => remember(null));

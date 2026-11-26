@@ -10,6 +10,7 @@ import { makeMission, MISSION_BONUS } from './mission';
 import { ornamentBonuses, type Ornament } from './ornament';
 import { hash, Rng } from './rng';
 import { addStats, BASE, emptyStats, type Stats } from './stats';
+import type { ShopState } from './shop';
 import type { Catch, HoleResult, HoleSpec, Loadout, RunConfig } from './types';
 
 export const HOLES_PER_RUN = 2;
@@ -113,6 +114,10 @@ export interface RunState {
   found: string[];
   /** which shop stop (0 on the road, 1 on the way home) */
   shopVisit: number;
+  /** the shop at the current stop (kept, so a refresh finds it as it was) */
+  shop?: ShopState & { visit: number };
+  /** catches so far in the hole being fished (kept, so a refresh mid-hole keeps them) */
+  partial?: { hole: number; catches: Catch[]; treasureCash: number };
 }
 
 export function newRunState(cfg: RunConfig, loadout: Loadout, startCash: number): RunState {

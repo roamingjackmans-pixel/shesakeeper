@@ -76,12 +76,18 @@ export function modal(content: HTMLElement, opts: { onClose?: () => void; wide?:
     if (e.target === back && !opts.locked) close();
   });
   window.addEventListener('keydown', onKey);
+  (back as HTMLElement & { closeModal?: () => void }).closeModal = close;
   stage().appendChild(back);
   return close;
 }
 
+/** close every open modal properly (their key listeners and onClose run, not just the elements going away) */
 export function closeModals(): void {
-  for (const m of document.querySelectorAll('.modal-back')) m.remove();
+  for (const m of document.querySelectorAll('.modal-back')) {
+    const c = (m as HTMLElement & { closeModal?: () => void }).closeModal;
+    if (c) c();
+    else m.remove();
+  }
 }
 
 export function toast(msg: string, kind: 'ok' | 'bad' | 'gold' = 'ok', ms = 3200): void {

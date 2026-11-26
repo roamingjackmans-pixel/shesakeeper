@@ -742,8 +742,9 @@ export class LakeScene implements Scene {
     const shake = this.shake > 0 ? this.shake : 0;
     this.shake = Math.max(0, this.shake - dt * 30);
     c.save();
-    if (shake) c.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
     const pr = pixelRatio();
+    // whole device pixels, so the big background copies straight across instead of being resampled
+    if (shake) c.translate(Math.round((Math.random() - 0.5) * shake * pr) / pr, Math.round((Math.random() - 0.5) * shake * pr) / pr);
     c.drawImage(this.bg!, 0, 0, this.bg!.width / pr, this.bg!.height / pr);
     // clouds drift
     for (const cl of this.clouds) {
@@ -1246,7 +1247,7 @@ export class LakeScene implements Scene {
       const pr = pixelRatio();
       const fw = this.fog.width / pr;
       const fh = this.fog.height / pr;
-      const off = (now * 12) % fw;
+      const off = Math.round(((now * 12) % fw) * pr) / pr;
       c.globalAlpha = 0.9;
       c.drawImage(this.fog, -off, HORIZON - 30, fw, fh);
       c.drawImage(this.fog, fw - off, HORIZON - 30, fw, fh);

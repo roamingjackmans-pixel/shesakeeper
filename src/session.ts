@@ -112,8 +112,9 @@ export function displayName(): string {
 }
 
 /** two copies of a save from two devices, merged so nothing anyone earned is lost */
-export function mergeProfiles(server: Profile, local: Profile): Profile {
+export function mergeProfiles(server: Profile, local: Profile, gone: ReadonlySet<string> = new Set()): Profile {
   const p = cleanProfile(server);
+  p.ornaments = p.ornaments.filter((o) => !gone.has(o.id));
   p.owned = [...new Set([...p.owned, ...local.owned])];
   const ids = new Set(p.ornaments.map((o) => o.id));
   const sameOrn = (a: Ornament, b: Ornament) => a.type === b.type && JSON.stringify(a.perks) === JSON.stringify(b.perks);
@@ -154,6 +155,7 @@ export function saveSoon(): void {
     }
     return;
   }
+  unsaved = true;
   clearTimeout(timer);
   timer = window.setTimeout(() => void saveNow().catch(() => {}), 1200);
 }
@@ -164,26 +166,50 @@ export function saveNow(): Promise<void> {
     saveSoon();
     return Promise.resolve();
   }
-  chain = chain.then(async () => {
-    session.saving = true;
-    try {
-      const r = await api.save(session.profile, session.rev);
-      session.rev = r.rev;
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 409) {
-        const body = e.body as { rev?: number; profile?: unknown };
-        session.profile = mergeProfiles(cleanProfile(body.profile), session.profile);
-        session.rev = Number(body.rev) || session.rev;
+  // a save that failed must not stop the ones after it: each starts fresh after the last, whatever happened to it
+  const next = chain
+    .catch(() => {})
+    .then(async () => {
+      session.saving = true;
+      try {
         const r = await api.save(session.profile, session.rev);
         session.rev = r.rev;
-      } else throw e;
-    } finally {
-      session.saving = false;
-    }
-  });
-  return chain;
+        unsaved = false;
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 409) {
+          const body = e.body as { rev?: number; profile?: unknown };
+          // merged into the same object, so every open screen keeps writing to the save that gets saved
+          Object.assign(session.profile, mergeProfiles(cleanProfile(body.profile), session.profile, sold));
+          session.rev = Number(body.rev) || session.rev;
+          const r = await api.save(session.profile, session.rev);
+          session.rev = r.rev;
+          unsaved = false;
+        } else {
+          // the network dropped or the server restarted: try again in a while
+          unsaved = true;
+          clearTimeout(retry);
+          retry = window.setTimeout(() => void saveNow().catch(() => {}), 8000);
+          throw e;
+        }
+      } finally {
+        session.saving = false;
+      }
+    });
+  chain = next;
+  return next;
 }
 
-window.addEventListener('beforeunload', () => {
+let retry = 0;
+let unsaved = false;
+/** ornaments sold or thrown out on this device (a merge with an older copy must not bring them back) */
+const sold = new Set<string>();
+
+export function forgetOrnament(id: string): void {
+  sold.add(id);
+}
+
+window.addEventListener('beforeunload', (e) => {
   if (session.offline) saveSoon();
+  // signed in with changes the server hasn't got yet: ask before the page goes
+  else if (session.online && (unsaved || session.saving)) e.preventDefault();
 });

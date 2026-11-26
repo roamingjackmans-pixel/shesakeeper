@@ -15,7 +15,7 @@ import { layer, pixelRatio, setScene, type Scene } from '../render/canvas';
 import { INK } from '../render/fishart';
 import { gearImage } from '../render/gearart';
 import { ornamentImage } from '../render/ornart';
-import { saveSoon, session } from '../session';
+import { forgetOrnament, saveSoon, session } from '../session';
 import { h, modal, toast } from './dom';
 import type { Run } from './runner';
 import { charmIcon, money, ornCard, perkLines, pts, tierBand } from './widgets';
@@ -98,8 +98,6 @@ class ShopScene implements Scene {
   }
 }
 
-let shopFor: { run: Run; visit: number; st: ShopState } | null = null;
-
 export function shopScreen(run: Run): void {
   setScene(new ShopScene());
   audio.music('shop');
@@ -108,11 +106,12 @@ export function shopScreen(run: Run): void {
   const home = isHomeShop(run.st);
   const visit = run.st.shopVisit;
   const ornId = () => newOrnamentId(p);
-  if (!shopFor || shopFor.run !== run || shopFor.visit !== visit) {
+  // the shop lives in the run, so a refresh (and resume) finds it exactly as it was: same items, same sales
+  if (!run.st.shop || run.st.shop.visit !== visit) {
     const rng = new Rng(hash(`${run.st.cfg.seed}:shop:${visit}:${run.me}`));
     const stats = run.stats();
-    shopFor = { run, visit, st: newShop(rng, { owned: p.owned, charms: run.st.charms, home, stats, ornId }) };
-    // Piggy Bank interest
+    run.st.shop = { ...newShop(rng, { owned: p.owned, charms: run.st.charms, home, stats, ornId }), visit };
+    // Piggy Bank interest, once per stop
     if (run.st.charms.includes('piggy')) {
       const [rate, cap] = CHARM.piggy!.interest!;
       const gain = Math.min(cap, Math.round(run.st.cash * rate));
@@ -121,8 +120,10 @@ export function shopScreen(run: Run): void {
         setTimeout(() => toast(`Piggy Bank: +$${gain} interest`, 'gold'), 400);
       }
     }
+    saveSoon();
+    run.persist();
   }
-  const shop = shopFor.st;
+  const shop: ShopState = run.st.shop;
   let rerollRng = new Rng(hash(`${run.st.cfg.seed}:reroll:${visit}:${run.me}:${shop.rerolls}`));
   show((root) => {
     const body = h('div.col', { style: 'gap:14px;flex:1' });
@@ -151,6 +152,7 @@ export function shopScreen(run: Run): void {
       }
       audio.sfx('buy');
       saveSoon();
+      run.persist();
       run.sendStatus(true);
       render();
     };
@@ -165,6 +167,8 @@ export function shopScreen(run: Run): void {
       rerollRng = new Rng(hash(`${run.st.cfg.seed}:reroll:${visit}:${run.me}:${shop.rerolls}:${shop.freeLeft}`));
       shop.items = rollItems(rerollRng, { owned: p.owned, charms: run.st.charms, home, stats, ornId });
       audio.sfx('reroll');
+      saveSoon();
+      run.persist();
       render();
     };
     const sell = () => {
@@ -188,10 +192,12 @@ export function shopScreen(run: Run): void {
                         {
                           onclick: () => {
                             removeOrnament(p, o.id);
+                            forgetOrnament(o.id);
                             run.st.loadout.dash = run.st.loadout.dash.map((d) => (d === o.id ? null : d));
                             run.st.cash += v;
                             audio.sfx('cash');
                             saveSoon();
+                            run.persist();
                             fill();
                             render();
                           },

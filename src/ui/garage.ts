@@ -36,7 +36,7 @@ export function garage(): void {
           { style: 'width:520px' },
           h('h2', 'Pick up where you left off?'),
           h('div', `Your ${saved.cfg.mode === 'daily' ? 'Daily Catch' : 'run'} is still going: hole ${saved.hole + 1} of ${saved.cfg.holes.length} (${saved.cfg.holes[saved.hole]?.name}), score ${pts(saved.score)}, ${money(saved.cash)} to spend.`),
-          saved.phase === 'fish' ? h('div.small.dim', 'The hole you were fishing starts again from the gear-up.') : '',
+          saved.phase === 'fish' ? h('div.small.dim', 'The hole you were fishing ends where you left it: you keep what you caught.') : '',
           h('div.row', h('button', { onclick: () => (forgetRun(), close()) }, 'Start fresh'), h('div.grow'), h('button.primary.big', { onclick: () => (close(), resumeSolo(saved)) }, 'Resume')),
         ),
         { locked: true },

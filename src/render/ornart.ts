@@ -580,11 +580,15 @@ export function drawOrnament(c: CanvasRenderingContext2D, o: Pick<Ornament, 'typ
 
 const ornCache = new Map<string, string>();
 
-/** a data-URL picture of an ornament, for menus (cached) */
-export function ornamentImage(o: Pick<Ornament, 'type' | 'tint' | 'tier'>, size = 96): string {
-  const key = `${o.type}:${o.tint}:${o.tier}:${size}`;
+/**
+ * A data-URL picture of an ornament for menus: drawn once per look (type, tint, tier) at one size, sharp up to 110 px
+ * on screen; the page scales it with CSS. `_size` is only the size it will be shown at.
+ */
+export function ornamentImage(o: Pick<Ornament, 'type' | 'tint' | 'tier'>, _size = 96): string {
+  const key = `${o.type}:${o.tint}:${o.tier}`;
   const hit = ornCache.get(key);
   if (hit) return hit;
+  const size = 110;
   const c = document.createElement('canvas');
   c.width = size * 2;
   c.height = size * 2;

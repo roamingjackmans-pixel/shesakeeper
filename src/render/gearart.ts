@@ -208,10 +208,12 @@ function bait(c: CanvasRenderingContext2D, g: Gear): void {
 
 const cache = new Map<string, string>();
 
-export function gearImage(id: string, size = 80): string {
-  const key = `${id}:${size}`;
+/** a data-URL picture of a piece of gear: drawn once, sharp up to 110 px on screen (`_size` is the size shown) */
+export function gearImage(id: string, _size = 80): string {
+  const key = id;
   const hit = cache.get(key);
   if (hit) return hit;
+  const size = 110;
   const g = GEAR[id];
   const c = document.createElement('canvas');
   c.width = size * 2;

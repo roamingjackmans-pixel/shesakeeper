@@ -351,14 +351,19 @@ function mulberry(a: number): () => number {
 
 const imgCache = new Map<string, string>();
 
-/** a data-URL picture of a fish, for menus and cards (cached) */
-export function fishImage(id: string, w = 160, h = 80, silhouette = false): string {
-  const key = `${id}:${w}:${h}:${silhouette}`;
+/**
+ * A data-URL picture of a fish for menus and cards. Drawn once per fish (and once more as a silhouette) at one size,
+ * 2:1, sharp up to 300×150 on screen; the page scales it with CSS. `_w`/`_h` are only the size it will be shown at.
+ */
+export function fishImage(id: string, _w = 160, _h = 80, silhouette = false): string {
+  const key = `${id}:${silhouette}`;
   const hit = imgCache.get(key);
   if (hit) return hit;
   const sp = FISH[id];
   const c = document.createElement('canvas');
-  const s = 2;
+  const w = 300;
+  const h = 150;
+  const s = 1.5;
   c.width = w * s;
   c.height = h * s;
   const x = c.getContext('2d')!;

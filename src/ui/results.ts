@@ -126,7 +126,7 @@ export function resultsScreen(run: Run, o: { best?: Catch; dailyReward: Ornament
         );
     const buttons =
       run.role === 'guest'
-        ? h('div.row', h('span.grow.dim', 'Waiting for the host…'), h('button', { onclick: () => run.leave() }, 'Leave'))
+        ? h('div.row', h('span.grow.dim', 'Waiting for the host…'), h('button', { onclick: () => void import('./lobby').then((m) => m.leaveCoop()) }, 'Leave'))
         : run.role === 'host'
           ? h('div.row', h('div.grow'), h('button.primary.big', { onclick: () => void import('./lobby').then((m) => m.backToLobby()) }, 'Back to the lobby'))
           : h(

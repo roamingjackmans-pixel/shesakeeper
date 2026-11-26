@@ -316,6 +316,16 @@ export class FishingSession {
     this.world.apply(s);
   }
 
+  /** the host says another angler hooked Her a moment before we did */
+  denyLegend(): void {
+    if (!this.angler.forfeitLegend()) return;
+    const head = this.standY();
+    audio.sfx('escape');
+    this.scene.float('Beaten to Her!', head.x, head.y, '#ffd27a', 32);
+    this.banner('Beaten to it!', 'Someone else hooked Her a split second earlier.', 2400);
+    audio.music(this.o.spec.time === 'night' || this.o.spec.time === 'dusk' ? 'night' : 'fish');
+  }
+
   private standY(): { x: number; y: number } {
     const st = this.scene.standAt(this.angler.x);
     return { x: st.x, y: st.y - 200 };

@@ -46,6 +46,8 @@ export interface CoopPlayer {
   online: boolean;
   legend: number;
   bubbleRate: number;
+  /** left the run (refreshed their page): no longer waited for */
+  gone?: boolean;
 }
 
 export const PHASE_SECONDS: Partial<Record<RunPhase, number>> = { drive: 9, loadout: 90, tally: 10, shop: 75 };
@@ -131,10 +133,12 @@ export class Run {
     this.overAt = 0;
     this.fishing?.dispose();
     this.fishing = null;
+    // "done" only means something during a hole: a late message from the last hole must not count for the next one
     for (const p of this.players) {
       p.ready = false;
-      if (phase === 'fish') p.done = false;
+      p.done = false;
     }
+    if (phase === 'drive' || phase === 'results') delete this.st.shop;
     const secs = PHASE_SECONDS[phase];
     this.deadline = !this.solo && secs ? Date.now() + (ms ?? secs * 1000) : this.solo && phase === 'drive' ? Date.now() + secs! * 1000 : 0;
     if (this.solo) keepRun(phase === 'results' ? null : this.st);
@@ -257,7 +261,7 @@ export class Run {
         onEvent: (e, a) => this.onFishEvent(e, a),
         onDone: () => this.fishDone(),
         onQuit: () => (this.solo ? this.leave() : void import('./lobby').then((m) => m.leaveCoop())),
-        send: this.link ? (m) => this.link!.send(m) : undefined,
+        send: this.link ? (m) => this.fromFishing(m) : undefined,
       });
       if (this.role === 'host') {
         const best = Math.max(f.angler.d.legend, ...this.players.filter((p) => p.id !== this.me).map((p) => p.legend));
@@ -274,6 +278,13 @@ export class Run {
     });
   }
 
+  /** what the fishing screen wants to tell the others: a guest tells the host; the host already shares its lake and
+   *  its angler in the heartbeat, so it only passes on its own news, with its name on it */
+  private fromFishing(m: Record<string, unknown>): void {
+    if (this.role === 'guest') return this.link!.send(m);
+    if (m.t === 'feed') this.link!.send({ t: 'feed', text: `${displayName()} ${String(m.text)}` });
+  }
+
   private onFishEvent(e: AEvent, a: Angler): void {
     const p = session.profile;
     if (e.k === 'catch') {
@@ -283,6 +294,7 @@ export class Run {
       this.catchesThisHole.push(e.c);
       if (e.c.id === 'marlene') this.landedHer();
       saveSoon();
+      this.keepPartial();
       this.sendStatus();
     } else if (e.k === 'treasure') {
       const rw = e.reward;
@@ -302,9 +314,17 @@ export class Run {
         const o = rollOrnament(new Rng(rw.seed), 'treasure', newOrnamentId(p), Date.now());
         this.giveOrnament(o, 'Treasure');
       }
+      this.keepPartial();
       this.sendStatus();
     }
     void a;
+  }
+
+  /** the hole so far, kept with the run (solo): a refresh ends the hole with these instead of replaying it */
+  private keepPartial(): void {
+    if (!this.solo) return;
+    this.st.partial = { hole: this.st.hole, catches: this.catchesThisHole, treasureCash: this.treasureCash };
+    this.persist();
   }
 
   /** an ornament into the glovebox (or sold on the spot when it's full) */
@@ -357,6 +377,7 @@ export class Run {
     this.holeTotals[hole.idx] = this.st.score;
     this.treasureCash = 0;
     this.catchesThisHole = [];
+    delete this.st.partial;
     saveSoon();
     this.sendStatus(true);
   }
@@ -402,12 +423,23 @@ export class Run {
     garage();
   }
 
-  /** pick a saved run back up (after a refresh): a hole that was being fished starts again at its gear-up */
+  /** pick a saved run back up (after a refresh). A hole that was being fished ends there, with what was caught. */
   resume(st: RunState): void {
     stopDemo();
     this.st = st;
-    const phase: RunPhase = st.phase === 'fish' ? 'loadout' : st.phase;
-    this.enter(phase);
+    if (st.phase === 'fish') {
+      const part = st.partial?.hole === st.hole ? st.partial : null;
+      this.catchesThisHole = part ? [...part.catches] : [];
+      this.treasureCash = part?.treasureCash ?? 0;
+      this.enter('tally');
+      return;
+    }
+    this.enter(st.phase);
+  }
+
+  /** keep a solo run in this tab's storage now (after a purchase, a catch…), so a refresh can't undo or redo it */
+  persist(): void {
+    if (this.solo) keepRun(this.st.phase === 'results' ? null : this.st);
   }
 
   // ------------------------------------------------------------------ co-op
@@ -422,7 +454,7 @@ export class Run {
     const p = session.profile;
     const stats = this.stats();
     const d = derived(stats);
-    const status = { t: 'status', score, ready: !!me?.ready, done: !!me?.done, dash: this.st.loadout.dash.map((id) => ornamentById(p, id)).filter(Boolean), lure: this.st.loadout.lure, legend: d.legend, bubbleRate: stats.bubbleRate, look: p.look };
+    const status = { t: 'status', score, ready: !!me?.ready, done: this.st.phase === 'fish' && !!me?.done, dash: this.st.loadout.dash.map((id) => ornamentById(p, id)).filter(Boolean), lure: this.st.loadout.lure, legend: d.legend, bubbleRate: stats.bubbleRate, look: p.look };
     if (this.role === 'guest') this.link.send(status);
     else this.broadcastPlayers();
   }
@@ -440,7 +472,7 @@ export class Run {
       if (t === 'status') {
         pl.score = Number(msg.score) || 0;
         pl.ready = !!msg.ready;
-        pl.done = !!msg.done || pl.done;
+        pl.done = this.st.phase === 'fish' && (!!msg.done || pl.done);
         pl.dash = Array.isArray(msg.dash) ? (msg.dash as Ornament[]).slice(0, 3) : pl.dash;
         pl.lure = String(msg.lure || pl.lure);
         pl.legend = Number(msg.legend) || 0;
@@ -449,9 +481,14 @@ export class Run {
         this.broadcastPlayers();
         this.onPhase?.();
       } else if (t === 'view') this.views.set(from, msg.v as AnglerView);
-      else if (t === 'claim') this.fishing?.world.claim(Number(msg.id));
-      else if (t === 'legendLost') this.fishing?.world.legendGone();
+      else if (t === 'claim') {
+        const w = this.fishing?.world;
+        // two anglers can't both have Her: whoever's claim reached the host first keeps her
+        if (msg.legend && w && w.legend !== 1) this.link!.send({ t: 'deny', to: from });
+        else w?.claim(Number(msg.id));
+      } else if (t === 'legendLost') this.fishing?.world.legendGone();
       else if (t === 'done') {
+        if (this.st.phase !== 'fish') return;
         pl.done = true;
         pl.score = Number(msg.score) || pl.score;
       } else if (t === 'feed') {
@@ -480,8 +517,18 @@ export class Run {
         this.onPhase?.();
       } else if (t === 'feed') {
         if (!String(msg.text).startsWith(displayName() + ' ')) this.fishing?.feed(String(msg.text));
-      }
+      } else if (t === 'deny' && msg.to === this.me) this.fishing?.denyLegend();
     }
+  }
+
+  /** a player whose game went away mid-run (they refreshed): they no longer hold anyone up */
+  dropPlayer(id: string): void {
+    const pl = this.players.find((p) => p.id === id);
+    if (!pl || pl.id === this.me) return;
+    pl.gone = true;
+    pl.online = false;
+    this.broadcastPlayers();
+    this.onPhase?.();
   }
 
   /** the host's heartbeat: the lake to everyone, timers, everyone ready */
@@ -496,15 +543,20 @@ export class Run {
       this.sendStatus();
       if (f.world.over) {
         if (!this.overAt) this.overAt = Date.now();
-        const online = this.players.filter((p) => p.online && p.id !== this.me);
+        const online = this.players.filter((p) => p.online && !p.gone && p.id !== this.me);
         // everyone landed their last fish, or 30 seconds of grace ran out
         if ((online.every((p) => p.done) && this.myPlayer()?.done) || Date.now() - this.overAt > 30000) this.next();
       }
       return;
     }
     const ph = this.st.phase;
-    if (ph === 'results' || ph === 'drive') return;
-    const online = this.players.filter((p) => p.online);
+    if (ph === 'results') return;
+    // the drive normally ends with its animation; if the host's tab is hidden (no animation), its deadline ends it
+    if (ph === 'drive') {
+      if (this.deadline && Date.now() >= this.deadline + 400) this.next();
+      return;
+    }
+    const online = this.players.filter((p) => p.online && !p.gone);
     const allReady = online.length > 0 && online.every((p) => p.ready);
     if ((this.deadline && Date.now() >= this.deadline) || allReady) this.next();
   }
@@ -513,7 +565,7 @@ export class Run {
 
   /** the relay told us who's connected */
   setOnline(ids: Set<string>): void {
-    for (const p of this.players) p.online = ids.has(p.id);
+    for (const p of this.players) p.online = !p.gone && ids.has(p.id);
     if (this.role === 'host') this.broadcastPlayers();
     this.onPhase?.();
   }
@@ -522,7 +574,8 @@ export class Run {
   closed(reason: string): void {
     if (this.finished) return;
     toast(`${reason} Your purchases and catches are saved.`, 'bad', 6000);
-    this.finish();
+    // through enter(), so a hole being fished is counted first
+    this.enter('results');
   }
 
   get endedFishing(): boolean {
