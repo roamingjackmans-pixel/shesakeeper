@@ -33,6 +33,17 @@ type Maker = (rng: Rng, c: Ctx) => Mission | null;
 
 const realFish = (c: Ctx): Species[] => c.pool.filter((s) => !s.tags.includes('junk'));
 
+/** how much of what bites here (by spawn weight) is a species that passes the test */
+function share(c: Ctx, test: (s: Species) => boolean): number {
+  let all = 0;
+  let hit = 0;
+  for (const s of c.pool) {
+    all += s.w;
+    if (test(s)) hit += s.w;
+  }
+  return all > 0 ? hit / all : 0;
+}
+
 const MAKERS: { id: string; w: number; make: Maker }[] = [
   {
     id: 'small',
@@ -56,11 +67,13 @@ const MAKERS: { id: string; w: number; make: Maker }[] = [
     id: 'wanted',
     w: 1.4,
     make: (r, c) => {
-      const options = realFish(c).filter((s) => s.w >= 8);
+      // a species common enough to find in four minutes; the goal is how many you'd expect to see
+      const options = realFish(c).filter((s) => share(c, (x) => x.id === s.id) >= 0.06);
       if (!options.length) return null;
       const s = r.pick(options);
       const tag = s.tags.find((t) => TAG_GEAR[t]);
-      const goal = s.w >= 30 ? 3 : 2;
+      const sh = share(c, (x) => x.id === s.id);
+      const goal = sh >= 0.2 ? 3 : sh >= 0.1 ? 2 : 1;
       return { id: 'wanted', title: 'Most Wanted', text: `${s.name} scores ×5`, goalText: `Catch ${goal} ${s.name}`, rule: { k: 'species', id: s.id }, mult: 5, goal, hint: tag ? `${s.name} counts as ${TAG_NAMES[tag]}: bait and lures for them help.` : `Keep casting. ${s.name} is out there.`, fits: tag ? TAG_GEAR[tag]! : [] };
     },
   },
@@ -68,11 +81,15 @@ const MAKERS: { id: string; w: number; make: Maker }[] = [
     id: 'family',
     w: 1.4,
     make: (r, c) => {
-      const tags = (['catfish', 'trout', 'bass', 'panfish', 'predator', 'bottom', 'salt', 'carp', 'prehistoric', 'eel'] as Tag[]).filter((t) => realFish(c).filter((s) => s.tags.includes(t)).length >= 2);
+      const tags = (['catfish', 'trout', 'bass', 'panfish', 'predator', 'bottom', 'salt', 'carp', 'prehistoric', 'eel'] as Tag[]).filter(
+        (t) => realFish(c).filter((s) => s.tags.includes(t)).length >= 2 && share(c, (s) => s.tags.includes(t)) >= 0.12,
+      );
       if (!tags.length) return null;
       const tag = r.pick(tags);
       const name = TAG_NAMES[tag];
-      return { id: 'family', title: 'Family Reunion', text: `All ${name} score ×3`, goalText: `Catch 4 ${name}`, rule: { k: 'tag', tag }, mult: 3, goal: 4, hint: `Bait and lures that attract ${name} make this easy.`, fits: TAG_GEAR[tag] ?? [] };
+      const sh = share(c, (s) => s.tags.includes(tag));
+      const goal = sh >= 0.4 ? 5 : sh >= 0.25 ? 4 : 3;
+      return { id: 'family', title: 'Family Reunion', text: `All ${name} score ×3`, goalText: `Catch ${goal} ${name}`, rule: { k: 'tag', tag }, mult: 3, goal, hint: `Bait and lures that attract ${name} make this easy.`, fits: TAG_GEAR[tag] ?? [] };
     },
   },
   {
@@ -92,8 +109,11 @@ const MAKERS: { id: string; w: number; make: Maker }[] = [
     id: 'heavy',
     w: 0.8,
     make: (_r, c) => {
-      const kg = c.pool.some((s) => s.k > 0 && s.k * Math.pow(s.cm[1] / 100, 3) >= 6) ? 2.5 : 1;
-      return { id: 'heavy', title: 'Heavyweight', text: `Fish weighing ${kg} kg or more score ×2.5`, goalText: 'Land 3 heavyweights', rule: { k: 'minKg', kg }, mult: 2.5, goal: 3, hint: 'Spoons and minnows grow fish; a heavy rod holds them.', fits: ['heavy', 'spoon', 'minnows'] };
+      // heavy for this water: what a fish in the top fifth of what bites here weighs
+      const big = (kg: number) => share(c, (s) => s.k > 0 && s.k * Math.pow((s.cm[0] + (s.cm[1] - s.cm[0]) * 0.75) / 100, 3) >= kg);
+      const kg = big(2) >= 0.2 ? 2 : big(1) >= 0.2 ? 1 : 0.5;
+      if (big(kg) < 0.1) return null;
+      return { id: 'heavy', title: 'Heavyweight', text: `Fish weighing ${kg} kg or more score ×2.5`, goalText: 'Land 2 heavyweights', rule: { k: 'minKg', kg }, mult: 2.5, goal: 2, hint: 'Spoons and minnows grow fish; a heavy rod holds them.', fits: ['heavy', 'spoon', 'minnows'] };
     },
   },
   { id: 'quick', w: 0.8, make: () => ({ id: 'quick', title: 'Quick Hands', text: 'Fish reeled in under 6 seconds score ×2.5', goalText: 'Reel in 5 quick ones', rule: { k: 'quick', s: 6 }, mult: 2.5, goal: 5, hint: 'Reel speed is king: Heavy and Carbon rods, Barbed Hooks.', fits: ['heavy', 'carbon', 'barbed'] }) },
