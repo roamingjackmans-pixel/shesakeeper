@@ -11,6 +11,8 @@ const OFFLINE_MODE = 'sak.offlineMode';
 
 export const session = {
   online: false,
+  /** playing offline: the save lives in this browser */
+  offline: false,
   user: null as User | null,
   profile: newProfile(),
   rev: 0,
@@ -53,6 +55,7 @@ export async function restore(): Promise<'online' | 'offline' | 'none'> {
 
 export function playOffline(): void {
   session.online = false;
+  session.offline = true;
   session.user = null;
   let raw: unknown = null;
   try {
@@ -69,6 +72,7 @@ async function adopt(token: string, user: User): Promise<void> {
   setToken(token);
   ls()?.removeItem(OFFLINE_MODE);
   session.online = true;
+  session.offline = false;
   session.user = user;
   const r = await api.me();
   session.profile = cleanProfile(r.profile);
@@ -97,6 +101,7 @@ export async function signOut(): Promise<void> {
   setToken('');
   await Net.drop();
   session.online = false;
+  session.offline = false;
   session.user = null;
   session.profile = newProfile();
   ls()?.removeItem(OFFLINE_MODE);
@@ -140,6 +145,8 @@ let chain: Promise<void> = Promise.resolve();
 
 export function saveSoon(): void {
   if (!session.online) {
+    // nobody signed in and not playing offline (the title screen): nothing to save
+    if (!session.offline) return;
     try {
       ls()?.setItem(OFFLINE_KEY, JSON.stringify(session.profile));
     } catch {
@@ -178,5 +185,5 @@ export function saveNow(): Promise<void> {
 }
 
 window.addEventListener('beforeunload', () => {
-  if (!session.online) saveSoon();
+  if (session.offline) saveSoon();
 });
