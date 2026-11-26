@@ -43,20 +43,20 @@ class ShopScene implements Scene {
         x.strokeStyle = INK;
         x.lineWidth = 6;
         x.beginPath();
-        x.rect(300, 340, 1000, 300);
+        x.rect(300, 250, 1000, 390);
         x.fill();
         x.stroke();
         x.fillStyle = '#5a3a2a';
         x.beginPath();
-        x.moveTo(260, 350);
-        x.lineTo(800, 200);
-        x.lineTo(1340, 350);
+        x.moveTo(260, 260);
+        x.lineTo(800, 120);
+        x.lineTo(1340, 260);
         x.closePath();
         x.fill();
         x.stroke();
         x.strokeStyle = 'rgba(0,0,0,0.25)';
         x.lineWidth = 3;
-        for (let y = 370; y < 640; y += 26) {
+        for (let y = 280; y < 640; y += 26) {
           x.beginPath();
           x.moveTo(300, y);
           x.lineTo(1300, y);
@@ -81,13 +81,13 @@ class ShopScene implements Scene {
     c.textAlign = 'center';
     c.lineWidth = 8;
     c.strokeStyle = INK;
-    c.strokeText('BAIT & TACKLE', 800, 315);
+    c.strokeText('BAIT & TACKLE', 800, 232);
     c.fillStyle = on ? '#7cf0ff' : '#3a6a7a';
-    c.fillText('BAIT & TACKLE', 800, 315);
+    c.fillText('BAIT & TACKLE', 800, 232);
     // string lights
     for (let i = 0; i < 22; i++) {
       const x = 300 + i * 47.6;
-      const y = 352 + Math.sin(i * 0.9) * 6;
+      const y = 262 + Math.sin(i * 0.9) * 6;
       c.fillStyle = ['#ffd23a', '#ff6a5a', '#7cff9a', '#6ab0ff'][i % 4]!;
       c.globalAlpha = 0.6 + 0.4 * Math.sin(now * 2 + i);
       c.beginPath();
@@ -251,7 +251,7 @@ export function shopScreen(run: Run): void {
           h('div.grow'),
           h('div.panel.row', { style: 'padding:12px 20px;gap:22px' }, h('div', h('div.hud-label', 'Cash'), h('div.cash', { style: 'font-size:40px' }, money(run.st.cash))), h('div', h('div.hud-label', 'Score'), h('div.display', { style: 'font-size:34px' }, pts(run.st.score)))),
         ),
-        h('div.row', { style: 'justify-content:center;gap:14px;align-items:stretch' }, ...shop.items.map(card)),
+        h('div.row', { style: 'justify-content:center;gap:14px;align-items:stretch;margin-top:110px' }, ...shop.items.map(card)),
         h(
           'div.row',
           { style: 'justify-content:center;gap:14px' },

@@ -107,6 +107,17 @@ export class FishingSession {
     this.buildHud(root);
     this.bindInput();
     this.offs.push(onTick((dt) => this.tick(dt)));
+    // a hidden tab gets no animation frames: the host keeps the shared lake (its clock, bubbles) running anyway
+    if (o.authority) {
+      const iv = window.setInterval(() => {
+        const now = performance.now();
+        if (now - this.lastTick > 300 && !this.ended) {
+          this.world.update(Math.min(5, (now - this.lastTick) / 1000));
+          this.lastTick = now;
+        }
+      }, 250);
+      this.offs.push(() => clearInterval(iv));
+    }
     const night = o.spec.time === 'night' || o.spec.time === 'dusk';
     audio.music(night ? 'night' : 'fish');
     audio.ambience({ water: true, birds: o.spec.time === 'day' || o.spec.time === 'dawn', crickets: night, rain: o.spec.weather === 'rain' || o.spec.weather === 'storm', wind: o.spec.weather === 'snow' || !!this.world.flags.wind });
@@ -190,8 +201,11 @@ export class FishingSession {
 
   // ------------------------------------------------------------------ every frame
 
+  private lastTick = performance.now();
+
   private tick(dt: number): void {
     if (this.ended) return;
+    this.lastTick = performance.now();
     if (this.o.authority) this.world.update(dt);
     else this.world.tick(dt);
     if (autoBot) {
