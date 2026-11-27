@@ -179,11 +179,12 @@ export const BASE = {
   treasureChance: 0.1,
   streakStep: 0.04,
   streakMax: 10,
-  legendChance: 0.16,
+  /** per hole; three holes a run makes about one run in three */
+  legendChance: 0.12,
   /** small fish are shorter than this, big ones at least this long (cm) */
   smallCm: 22,
   bigCm: 60,
-  holeSeconds: 240,
+  holeSeconds: 150,
 };
 
 /** the stats as the rules use them: the totals turned into the actual numbers */

@@ -1,6 +1,6 @@
-// A run: drive to a fishing hole, pick gear for its mission, fish four minutes, shop on the road, drive to the second
-// hole, fish again, last shop on the way home. Score is every point you caught (spending never lowers it); cash is
-// what you have left to spend this run.
+// A run: three fishing holes, two and a half minutes each. Drive to a hole, pick gear for its mission, fish, shop on
+// the road; twice more, the last shop on the way home. Score is every point you caught (spending never lowers it);
+// cash is what you have left to spend this run.
 import { CHARM, MOD, MODS, modFlags } from '../data/charms';
 import { GEAR } from '../data/gear';
 import { BIOME_IDS, BIOMES, TIMES } from '../data/spots';
@@ -13,17 +13,18 @@ import { addStats, BASE, emptyStats, type Stats } from './stats';
 import type { ShopState } from './shop';
 import type { Catch, HoleResult, HoleSpec, Loadout, RunConfig } from './types';
 
-export const HOLES_PER_RUN = 2;
+export const HOLES_PER_RUN = 3;
 
-export function buildHole(rng: Rng, idx: number, mods: string[], avoid: { biome?: Biome; mission?: string } = {}): HoleSpec {
+/** `avoid`: the water and missions already used this run (every hole is a different kind of water and mission) */
+export function buildHole(rng: Rng, idx: number, mods: string[], avoid: { biomes?: Biome[]; missions?: string[] } = {}): HoleSpec {
   const flags = modFlags(mods);
-  const biome = rng.pick(BIOME_IDS.filter((b) => b !== avoid.biome));
+  const biome = rng.pick(BIOME_IDS.filter((b) => !avoid.biomes?.includes(b)));
   const def = BIOMES[biome];
   const time: TimeOfDay = flags.time ?? rng.weighted(TIMES, (t) => (t === 'day' ? 1.3 : 1));
   const weather: Weather = flags.weather ?? rng.pick(def.weather);
   const pool = holePool(biome, time);
-  const mission = makeMission(rng, { pool, time, weather }, avoid.mission ? [avoid.mission] : []);
   const seconds = flags.holeSeconds ?? BASE.holeSeconds;
+  const mission = makeMission(rng, { pool, time, weather, secs: seconds }, avoid.missions ?? []);
   return {
     idx,
     seed: Math.floor(rng.next() * 2 ** 31),
@@ -34,7 +35,7 @@ export function buildHole(rng: Rng, idx: number, mods: string[], avoid: { biome?
     mission,
     seconds,
     legendRoll: rng.next(),
-    legendAt: rng.range(45, seconds - 60),
+    legendAt: rng.range(Math.min(40, seconds * 0.3), seconds - 50),
     wind: (rng.chance(0.5) ? 1 : -1) * rng.range(0.4, 1),
   };
 }
@@ -42,10 +43,7 @@ export function buildHole(rng: Rng, idx: number, mods: string[], avoid: { biome?
 export function buildRun(seed: number, mode: RunConfig['mode'], mods: string[], date?: string): RunConfig {
   const rng = new Rng(seed);
   const holes: HoleSpec[] = [];
-  for (let i = 0; i < HOLES_PER_RUN; i++) {
-    const prev = holes[i - 1];
-    holes.push(buildHole(rng, i, mods, prev ? { biome: prev.biome, mission: prev.mission.id } : {}));
-  }
+  for (let i = 0; i < HOLES_PER_RUN; i++) holes.push(buildHole(rng, i, mods, { biomes: holes.map((x) => x.biome), missions: holes.map((x) => x.mission.id) }));
   return { seed, mode, mods: [...mods], holes, ...(date ? { date } : {}) };
 }
 

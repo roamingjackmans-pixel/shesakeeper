@@ -13,7 +13,7 @@ import { HoleWorld } from '../src/core/world';
 const DT = 1 / 30;
 
 function play(seed: number, lo: Loadout, orns: Ornament[], skill: number, mods: string[] = []) {
-  const hole = buildRun(seed, 'solo', mods).holes[seed % 2]!;
+  const hole = buildRun(seed, 'solo', mods).holes[seed % 3]!;
   const stats = loadoutStats(lo, orns, mods);
   const world = new HoleWorld(hole, mods);
   world.legendChance = derived(stats).legend;
@@ -66,7 +66,7 @@ describe('balance', () => {
       avg[name] = total / N;
       rows.push(`${name.padEnd(8)} ${Math.round(total / N).toString().padStart(6)} pts/hole  ${(fish / N).toFixed(1)} fish  missions ${done}/${N}`);
     }
-    console.log(`skill 0.85 bot, 4-minute holes:\n${rows.join('\n')}\nmission completion: ${[...missions].map(([k, [d, n]]) => `${k} ${d}/${n}`).join(', ')}`);
+    console.log(`skill 0.85 bot, 2.5-minute holes:\n${rows.join('\n')}\nmission completion: ${[...missions].map(([k, [d, n]]) => `${k} ${d}/${n}`).join(', ')}`);
     expect(avg.mid!).toBeGreaterThan(avg.starter! * 1.05);
     expect(avg.top!).toBeGreaterThan(avg.mid! * 1.4);
   });

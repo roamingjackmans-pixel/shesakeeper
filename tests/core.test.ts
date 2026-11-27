@@ -120,17 +120,23 @@ describe('dash ornaments', () => {
 });
 
 describe('runs', () => {
-  it('two holes, different water, missions with goals', () => {
+  it('three 2.5-minute holes, each a different water and mission, goals sized for the hole', () => {
     for (let s = 0; s < 50; s++) {
       const r = buildRun(s, 'solo', []);
-      expect(r.holes.length).toBe(2);
-      expect(r.holes[0]!.biome).not.toBe(r.holes[1]!.biome);
+      expect(r.holes.length).toBe(3);
+      expect(new Set(r.holes.map((h) => h.biome)).size).toBe(3);
+      expect(new Set(r.holes.map((h) => h.mission.id)).size).toBeGreaterThanOrEqual(2);
       for (const h of r.holes) {
         expect(h.mission.goal).toBeGreaterThan(0);
+        expect(h.mission.goal).toBeLessThanOrEqual(10);
+        expect(h.mission.goalText).toMatch(new RegExp(`\\b${h.mission.goal}\\b`));
         expect(h.mission.mult).toBeGreaterThan(1);
-        expect(h.seconds).toBe(240);
+        expect(h.seconds).toBe(150);
+        expect(h.legendAt).toBeLessThan(h.seconds - 20);
       }
     }
+    // Speed Fishing makes holes 2 minutes
+    expect(buildRun(1, 'solo', ['speed']).holes.every((h) => h.seconds === 120)).toBe(true);
   });
   it('the daily is the same for everyone and has 2–3 compatible modifiers', () => {
     expect(dailyRun('2026-11-25')).toEqual(dailyRun('2026-11-25'));
@@ -161,7 +167,7 @@ function playHole(seed: number, skill: number, lo = { ...STARTER, dash: [] as (s
 }
 
 describe('a whole hole, played by a bot', () => {
-  it('a good player catches a dozen-plus fish in four minutes with starter gear', () => {
+  it('a good player catches about ten fish in a 2.5-minute hole with starter gear', () => {
     const counts: number[] = [];
     const pts: number[] = [];
     for (let s = 1; s <= 12; s++) {
@@ -174,8 +180,8 @@ describe('a whole hole, played by a bot', () => {
     const avg = counts.reduce((x, y) => x + y, 0) / counts.length;
     const avgPts = pts.reduce((x, y) => x + y, 0) / pts.length;
     console.log(`starter gear: ${avg.toFixed(1)} fish, ${Math.round(avgPts)} points per hole (min ${Math.min(...pts)}, max ${Math.max(...pts)})`);
-    expect(avg).toBeGreaterThan(10);
-    expect(avg).toBeLessThan(30);
+    expect(avg).toBeGreaterThan(6.5);
+    expect(avg).toBeLessThan(20);
   });
 });
 

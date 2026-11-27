@@ -9,8 +9,8 @@ friends on the same lake. Email + password accounts (the same ones as Shoallhell
 
 ## How it plays
 
-- **A run** is two fishing holes, four minutes of fishing each. You drive to each one, see its mission, pick your gear,
-  fish, then stop at the bait shop. A last shop on the way home, then your score.
+- **A run** is three fishing holes, two and a half minutes of fishing each. You drive to each one, see its mission,
+  pick your gear, fish, then stop at the bait shop. The third shop is on the way home, then your score.
 - **Casting.** Move the mouse to aim (a dotted line shows your reach). Hold the button (or Space) and the cast meter
   swings up and down; let go to cast. A ring shows where the bobber will land. The very top of the meter is a
   **Perfect Cast** (farther, and better catches).

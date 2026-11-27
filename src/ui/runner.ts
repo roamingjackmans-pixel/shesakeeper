@@ -248,6 +248,7 @@ export class Run {
     show((root) => {
       const f = new FishingSession(root, {
         spec: hole,
+        holes: this.st.cfg.holes.length,
         mods: this.st.cfg.mods,
         stats,
         charms: this.st.loadout.charms,

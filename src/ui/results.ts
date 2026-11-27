@@ -53,7 +53,7 @@ export function tallyScreen(run: Run, res: HoleResult): void {
         h(
           'div.panel.col',
           { style: 'width:760px;gap:12px;animation:pop .3s' },
-          h('div.hud-label', `Hole ${hole.idx + 1} of 2 · ${hole.name}`),
+          h('div.hud-label', `Hole ${hole.idx + 1} of ${run.st.cfg.holes.length} · ${hole.name}`),
           h('h2', { style: 'font-size:44px' }, res.catches.length ? `${res.catches.length} fish landed` : 'Skunked!'),
           h(
             'div.card.row',

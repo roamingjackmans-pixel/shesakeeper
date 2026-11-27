@@ -112,7 +112,7 @@ export const MODS: ModDef[] = [
   { id: 'ghost', name: 'Ghost Lake', text: 'Night at every hole. Rare fish 3× as likely.', glyph: '👻', flags: { time: 'night' }, bonus: { rareChance: 2 } },
   { id: 'trove', name: 'Treasure Trove', text: 'Every catch brings a treasure chest.', glyph: '💰', bonus: { treasureChance: 1 } },
   { id: 'reverse', name: 'Upside Down', text: 'Hold to sink the catch bar, let go to rise. Points ×1.3.', glyph: '🙃', flags: { reverse: true }, bonus: { points: 0.3 } },
-  { id: 'speed', name: 'Speed Fishing', text: 'Holes last 3 minutes, but bites come 3× as fast.', glyph: '⚡', flags: { holeSeconds: 180 }, bonus: { biteSpeed: 2 } },
+  { id: 'speed', name: 'Speed Fishing', text: 'Holes last 2 minutes, but bites come 3× as fast.', glyph: '⚡', flags: { holeSeconds: 120 }, bonus: { biteSpeed: 2 } },
   { id: 'marlene', name: 'Marlene Watch', text: 'She shows up at every hole.', glyph: '👑', flags: { legendAlways: true } },
   { id: 'storm', name: 'Storm Chaser', text: 'Storms everywhere. After each lightning flash, 8 seconds of double points.', glyph: '⛈', flags: { weather: 'storm', charged: true }, excludes: ['ghost'] },
   { id: 'glassline', name: 'Glass Line', text: 'An escaped fish snaps your line: 8 seconds to re-tie. Points ×1.4.', glyph: '🧵', flags: { snap: 8 }, bonus: { points: 0.4 } },

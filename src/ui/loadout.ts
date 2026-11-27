@@ -81,9 +81,9 @@ export function loadoutScreen(run: Run): void {
         h(
           'div.panel.col',
           { style: 'width:400px;gap:10px;padding:18px' },
-          h('div.hud-label', `Hole ${hole.idx + 1} of 2 · ${BIOMES[hole.biome].name}`),
+          h('div.hud-label', `Hole ${hole.idx + 1} of ${run.st.cfg.holes.length} · ${BIOMES[hole.biome].name}`),
           h('h2', { style: 'font-size:34px;line-height:1' }, hole.name),
-          h('div.row.wrap', { style: 'gap:6px' }, h('span.chip', `${TIME_ICON[hole.time]} ${TIME_NAMES[hole.time]}`), h('span.chip', `${WEATHER_ICON[hole.weather]} ${WEATHER_NAMES[hole.weather]}`), h('span.chip', `⏱ ${Math.round(hole.seconds / 60)} min`)),
+          h('div.row.wrap', { style: 'gap:6px' }, h('span.chip', `${TIME_ICON[hole.time]} ${TIME_NAMES[hole.time]}`), h('span.chip', `${WEATHER_ICON[hole.weather]} ${WEATHER_NAMES[hole.weather]}`), h('span.chip', `⏱ ${+(hole.seconds / 60).toFixed(1)} min`)),
           h('div.card', { style: 'background:#fff7e0' }, h('div.display', { style: 'font-size:28px;color:#d8642a' }, mission.title), h('div', { style: 'font-weight:700;font-size:18px' }, mission.text), h('div', `Goal: ${mission.goalText} → the whole hole scores ×1.5`), h('div.small.dim', { style: 'margin-top:4px' }, `💡 ${mission.hint}`)),
           run.st.cfg.mods.length ? h('div.col', { style: 'gap:4px' }, ...run.st.cfg.mods.map((m) => h('div.small', h('b', `${MOD[m]!.glyph} ${MOD[m]!.name}: `), MOD[m]!.text))) : '',
           h('b', 'Living here'),

@@ -66,7 +66,7 @@ export function garage(): void {
           { style: 'width:520px;gap:14px' },
           h('div.logo', { style: 'font-size:64px' }, 'She’s A ', h('span.gold', 'Keeper')),
           h('div.tagline', { style: 'font-size:18px;margin-top:-6px' }, session.online ? `${session.user?.name}’s garage` : 'Your garage (offline)'),
-          big('Go fishing', 'Two holes, four minutes each. Shop on the road.', 'primary', () => startSolo(), '🎣'),
+          big('Go fishing', 'Three holes, two and a half minutes each. Shop on the road.', 'primary', () => startSolo(), '🎣'),
           big('Daily Catch', dailyBest ? `Today’s twist. Your best: ${pts(dailyBest)}` : 'Same lakes and twists for everyone today.', 'gold', () => dailyScreen(), '📅'),
           big('Fish with friends', session.online ? 'Up to four anglers on one lake.' : 'Sign in to fish with friends.', 'teal', () => (session.online ? coopHome() : toast('Sign in to fish with friends (Settings → Sign in).', 'bad')), '🚚'),
           h('div.row', small('🧰 Tackle', () => tackleBox()), small('🧸 Glovebox', () => glovebox()), small('📖 Fish log', () => fishLog())),

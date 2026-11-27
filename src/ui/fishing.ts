@@ -43,6 +43,8 @@ export function seatXs(n: number): number[] {
 
 export interface FishingOpts {
   spec: HoleSpec;
+  /** how many holes this run has */
+  holes: number;
   mods: string[];
   stats: Stats;
   charms: string[];
@@ -456,7 +458,7 @@ export class FishingSession {
   private buildHud(root: HTMLElement): void {
     const s = this.o.spec;
     const mission = s.mission;
-    this.els.clock = h('div.hud-clock', '4:00');
+    this.els.clock = h('div.hud-clock', `${Math.floor(s.seconds / 60)}:${String(Math.round(s.seconds % 60)).padStart(2, '0')}`);
     this.els.score = h('div.hud-score', '0');
     this.els.cash = h('div.cash', { style: 'font-size:22px' }, '$0');
     this.els.streak = h('div.small', { style: 'font-weight:800;color:#d8642a' });
@@ -476,7 +478,7 @@ export class FishingSession {
       { style: 'position:absolute;inset:0' },
       h(
         'div.hud-top',
-        h('div.hud-box', h('div.hud-label', `${BIOMES[s.biome].name} · ${TIME_ICON[s.time]} ${TIME_NAMES[s.time]} · ${WEATHER_ICON[s.weather]} ${WEATHER_NAMES[s.weather]}`), h('div.row', { style: 'gap:10px' }, this.els.clock, h('div.col', { style: 'gap:0' }, h('b', s.name), h('span.small.dim', `Hole ${s.idx + 1} of 2`)))),
+        h('div.hud-box', h('div.hud-label', `${BIOMES[s.biome].name} · ${TIME_ICON[s.time]} ${TIME_NAMES[s.time]} · ${WEATHER_ICON[s.weather]} ${WEATHER_NAMES[s.weather]}`), h('div.row', { style: 'gap:10px' }, this.els.clock, h('div.col', { style: 'gap:0' }, h('b', s.name), h('span.small.dim', `Hole ${s.idx + 1} of ${this.o.holes}`)))),
         this.els.mission,
         h('div.grow'),
         h('div.col', { style: 'gap:8px;align-items:flex-end' }, h('div.row', { style: 'gap:8px;align-items:flex-start' }, h('div.hud-box', { style: 'text-align:right' }, h('div.hud-label', 'Score'), this.els.score, h('div.row', { style: 'justify-content:flex-end;gap:10px' }, this.els.streak, this.els.cash)), h('button.tiny', { style: 'pointer-events:auto;font-size:20px;padding:4px 12px', title: 'Menu (Esc)', 'aria-label': 'Menu', onclick: () => this.pauseMenu() }, '⏸')), this.o.board ? h('div.hud-box', this.els.board) : ''),

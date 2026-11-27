@@ -1,6 +1,6 @@
 # CLAUDE.md — She's A Keeper
 
-A roguelite fishing game (README.md): Stardew-style casting and catch bar, two 4-minute holes per run with missions, a
+A roguelite fishing game (README.md): Stardew-style casting and catch bar, three 2.5-minute holes per run with missions, a
 Balatro-style bait shop, Nightreign-style dash ornaments, Marlene the legendary fish. Browser game (Vite + TypeScript,
 no framework): canvas for the lake and the truck, DOM menus on a fixed 1600×900 stage scaled to the window. Desktop
 only (owner's choice). Online through **Shoallhell's server** (`C:\dev\Shoallhell\server`, shared accounts, game id
