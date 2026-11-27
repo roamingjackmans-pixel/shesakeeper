@@ -9,6 +9,9 @@ friends on the same lake. Email + password accounts (the same ones as Shoallhell
 
 ## How it plays
 
+- **The tutorial** (offered on your first visit, and under 🎓 Tutorial in the garage any time): a practice pond with
+  no clock where a coach walks you through aiming, walking, casting, the bite, the catch bar, bubbles and shoving a
+  rival (Gus), then a gear guide on what rods, lures, bait, dash ornaments and run charms do.
 - **A run** is three fishing holes, two and a half minutes of fishing each. You drive to each one, see its mission,
   pick your gear, fish, then stop at the bait shop. The third shop is on the way home, then your score.
 - **Casting.** Move the mouse to aim (a dotted line shows your reach). Hold the button (or Space) and the cast meter
@@ -75,6 +78,15 @@ friends on the same lake. Email + password accounts (the same ones as Shoallhell
   The host can add up to three twists as house rules. Everyone fishes the same lake at the same time (same bubbles,
   same clock, same Marlene), each with their own gear, shop and saves. At each hole there's 90 seconds to gear up (or
   until everyone is ready); the shop gets 75. Ranked by score at the end.
+
+### Leaderboard
+
+🏆 **Leaderboard** in the garage. *Friends*: you against your friends on this week's best run (weeks start on Monday,
+US Central), best run ever, and today's Daily Catch, with each angler's fish, runs, Marlene catches and biggest fish,
+and a line on where you stand ("#2 of 5, 1,240 behind Sam"). *Your scores*: records (best run, this week, best daily,
+best with friends, most fish in a run, biggest fish…), your ten best runs and your last ten. The end of a run says
+when it's a new high score or a top-ten run and shows this week's friends board (offline: your top runs). Friends'
+numbers come from their saves on Shoallhell's server (`GET /api/sak/board`).
 
 ## Run it locally
 

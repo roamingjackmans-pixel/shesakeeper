@@ -15,6 +15,7 @@ import { saveSoon, session, signOut } from '../session';
 import { demoLake, demoScene } from './demo';
 import { h, modal, toast } from './dom';
 import { friendsModal } from './friends';
+import { leaderboard } from './leaderboard';
 import { coopHome, listenInvites } from './lobby';
 import { forgetRun, resumeSolo, savedRun, startDaily, startSolo } from './runner';
 import { warmUp } from './warm';
@@ -32,6 +33,8 @@ export function garage(): void {
   // brand new: offer the tutorial once
   if (!saved && !tutorialSeen() && session.profile.stats.runs === 0)
     setTimeout(() => {
+      // only on the garage itself, and never on top of something they already opened
+      if (!document.querySelector('.screen.garage') || document.querySelector('.modal-back')) return;
       const close = modal(
         h(
           'div.col',
@@ -73,7 +76,7 @@ export function garage(): void {
     const dash = p.loadout.dash.map((id) => ornamentById(p, id));
     root.appendChild(
       h(
-        'div.screen',
+        'div.screen.garage',
         { style: 'flex-direction:row;gap:28px;background:linear-gradient(90deg,rgba(10,14,34,0.78) 0%,rgba(10,14,34,0.55) 38%,rgba(10,14,34,0) 62%)' },
         h(
           'div.col',
@@ -84,7 +87,7 @@ export function garage(): void {
           big('Daily Catch', dailyBest ? `Today’s twist. Your best: ${pts(dailyBest)}` : 'Same lakes and twists for everyone today.', 'gold', () => dailyScreen(), '📅'),
           big('Fish with friends', session.online ? 'Up to four anglers on one lake.' : 'Sign in to fish with friends.', 'teal', () => (session.online ? coopHome() : toast('Sign in to fish with friends (Settings → Sign in).', 'bad')), '🚚'),
           h('div.row', small('🧰 Tackle', () => tackleBox()), small('🧸 Glovebox', () => glovebox()), small('📖 Fish log', () => fishLog())),
-          h('div.row', small('🧢 Angler', () => anglerScreen()), small('🏆 Records', () => records()), small('⚙ Settings', () => settings())),
+          h('div.row', small('🧢 Angler', () => anglerScreen()), small('🏆 Leaderboard', () => leaderboard()), small('⚙ Settings', () => settings())),
           h('div.row', small('🎓 Tutorial', () => startTutorial()), small('❓ How to play', () => howToPlay()), session.online ? small('👥 Friends', () => friendsModal()) : ''),
         ),
         h('div.grow'),
@@ -354,49 +357,6 @@ function anglerScreen(): void {
     { wide: true },
   );
   draw();
-}
-
-// ------------------------------------------------------------------ records
-
-function records(): void {
-  const p = session.profile;
-  const close = modal(
-    h(
-      'div.col',
-      { style: 'width:760px' },
-      h('div.row', h('h2.grow', 'Records'), h('button', { onclick: () => close() }, 'Close')),
-      h(
-        'div.row.wrap',
-        { style: 'gap:10px' },
-        ...[
-          ['Runs', pts(p.stats.runs)],
-          ['Best run', pts(p.stats.best)],
-          ['Fish caught', pts(p.stats.fish)],
-          ['Points, all time', pts(p.stats.total)],
-          ['Dailies played', pts(p.stats.dailies)],
-          ['Marlene landed', pts(p.stats.marlene)],
-        ].map(([k, v]) => h('div.card', { style: 'min-width:220px' }, h('div.hud-label', k!), h('div.display', { style: 'font-size:32px' }, v!))),
-      ),
-      h('h3', 'Recent runs'),
-      p.history.length
-        ? h(
-            'div.col',
-            { style: 'gap:6px' },
-            ...p.history.map((r) =>
-              h(
-                'div.card.row',
-                { style: 'padding:8px 12px' },
-                h('b', { style: 'width:110px' }, new Date(r.at).toLocaleDateString()),
-                h('span', { style: 'width:120px' }, r.mode === 'daily' ? 'Daily' : r.mode === 'coop' ? `With friends${r.rank ? ` (#${r.rank}/${r.players})` : ''}` : 'Solo'),
-                h('span.grow.small.dim', r.holes.join(' → ')),
-                h('b.display', { style: 'font-size:22px' }, pts(r.score)),
-              ),
-            ),
-          )
-        : h('div.dim', 'No runs yet. Go fishing!'),
-    ),
-    { wide: true },
-  );
 }
 
 // ------------------------------------------------------------------ settings

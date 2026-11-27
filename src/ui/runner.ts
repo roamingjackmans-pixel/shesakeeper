@@ -6,9 +6,9 @@ import { show } from '../app';
 import { audio } from '../audio/audio';
 import type { AEvent, Angler, AnglerView } from '../core/angler';
 import { rollOrnament, type Ornament } from '../core/ornament';
-import { GLOVEBOX_MAX, logCatch, newOrnamentId, ornamentById } from '../core/profile';
+import { GLOVEBOX_MAX, logCatch, newOrnamentId, ornamentById, recordRun, type HistoryRow } from '../core/profile';
 import { Rng } from '../core/rng';
-import { buildRun, dailyRun, holeResult, loadoutStats, newRunState, nextPhase, today, type RunPhase, type RunState } from '../core/run';
+import { buildRun, dailyRun, holeResult, loadoutStats, newRunState, nextPhase, today, weekOf, type RunPhase, type RunState } from '../core/run';
 import { derived } from '../core/stats';
 import type { AnglerLook, Catch, HoleResult, RunConfig } from '../core/types';
 import type { WorldSnap } from '../core/world';
@@ -401,8 +401,11 @@ export class Run {
       const order = [...this.players].sort((a, b) => b.score - a.score);
       rank = order.findIndex((x) => x.id === this.me) + 1;
     }
-    p.history.unshift({ at: Date.now(), mode: cfg.mode, score: this.st.score, holes: cfg.holes.map((x) => x.name), rank, players: this.solo ? undefined : this.players.length });
-    p.history = p.history.slice(0, 10);
+    const bestText = best ? `${Math.round(best.cm)} cm ${FISH[best.id]?.name}` : '';
+    const row: HistoryRow = { at: Date.now(), mode: cfg.mode, score: this.st.score, holes: cfg.holes.map((x) => x.name), fish: all.length, best: bestText };
+    if (!this.solo) Object.assign(row, { rank, players: this.players.length });
+    if (all.some((c) => c.id === 'marlene')) row.marlene = true;
+    const topPlace = recordRun(p, row, weekOf(today()));
     let dailyReward: Ornament | null = null;
     if (cfg.mode === 'daily' && cfg.date) {
       p.stats.dailies += 1;
@@ -413,10 +416,10 @@ export class Run {
         dailyReward = rollOrnament(new Rng(`${cfg.date}:${session.user?.id ?? 'local'}`), 'daily', newOrnamentId(p), Date.now());
         p.ornaments.push(dailyReward);
       }
-      if (session.online) void api.postDaily(cfg.date, this.st.score, best ? `${Math.round(best.cm)} cm ${FISH[best.id]?.name}` : '', all.length).catch(() => {});
+      if (session.online) void api.postDaily(cfg.date, this.st.score, bestText, all.length).catch(() => {});
     }
     void saveNow().catch(() => {});
-    resultsScreen(this, { best, dailyReward, rank });
+    resultsScreen(this, { best, dailyReward, rank, topPlace });
   }
 
   leave(): void {

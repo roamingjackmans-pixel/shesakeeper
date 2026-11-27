@@ -13,6 +13,7 @@ import { fishPic, ornPic } from '../render/pics';
 import { ornamentById } from '../core/profile';
 import { session } from '../session';
 import { h } from './dom';
+import { boardRow, friendsBoard, leaderboard, ranked, standing } from './leaderboard';
 import type { Run } from './runner';
 import { money, ornCard, pts } from './widgets';
 
@@ -83,7 +84,44 @@ export function tallyScreen(run: Run, res: HoleResult): void {
   });
 }
 
-export function resultsScreen(run: Run, o: { best?: Catch; dailyReward: Ornament | null; rank?: number }): void {
+/** beside a solo or daily result: where the run sits on this week's friends board, or (offline) in your top ten */
+function standings(run: Run): HTMLElement {
+  const p = session.profile;
+  const latest = p.history[0]?.at;
+  const full = (tab: 'friends' | 'mine') => h('button.tiny', { onclick: () => leaderboard(tab, run.st.cfg.mode === 'daily' ? 'daily' : 'week') }, '🏆 Full leaderboard');
+  if (!session.online)
+    return h(
+      'div.col',
+      { style: 'gap:6px' },
+      h('div.row', h('h3.grow', 'Your top runs'), full('mine')),
+      ...p.top.slice(0, 5).map((r, i) =>
+        h(
+          'div.card.row',
+          { style: `padding:5px 12px;${r.at === latest ? 'background:#fff3c8' : ''}` },
+          h('span', { style: 'font-size:22px;width:34px;text-align:center;font-weight:800' }, ['🥇', '🥈', '🥉'][i] ?? `${i + 1}.`),
+          h('b.grow', r.at === latest ? 'This run' : new Date(r.at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })),
+          h('b.display', { style: 'font-size:22px' }, pts(r.score)),
+        ),
+      ),
+    );
+  const scope = run.st.cfg.mode === 'daily' ? 'daily' : 'week';
+  const line = h('div.small', { style: 'font-weight:700' });
+  const list = h('div.col', { style: 'gap:5px' }, h('div.dim', 'Loading the board…'));
+  friendsBoard(true)
+    .then((v) => {
+      const placed = ranked(v.rows, scope);
+      line.textContent = standing(placed, scope);
+      // the top four, and you if you're further down
+      const shown = placed.slice(0, 4);
+      const me = placed.find((x) => x.row.me);
+      if (me && !shown.includes(me)) shown.push(me);
+      list.replaceChildren(...shown.map((x) => boardRow(x, scope, true)));
+    })
+    .catch(() => list.replaceChildren(h('div.dim', 'The friends board is out of reach right now.')));
+  return h('div.col', { style: 'gap:6px' }, h('div.row', h('h3.grow', scope === 'daily' ? 'Today’s daily, with friends' : 'This week, with friends'), full('friends')), line, list);
+}
+
+export function resultsScreen(run: Run, o: { best?: Catch; dailyReward: Ornament | null; rank?: number; topPlace?: number }): void {
   const p = session.profile;
   const scene = new DriveScene(null, [{ name: 'You', color: '#ffcc33', ornaments: run.st.loadout.dash.map((id) => ornamentById(p, id) ?? null) }], 'Heading home. Nice day on the water.', 1e9);
   setScene(scene);
@@ -147,7 +185,11 @@ export function resultsScreen(run: Run, o: { best?: Catch; dailyReward: Ornament
             'div.row',
             { style: 'align-items:flex-end' },
             h('div.col', { style: 'gap:0' }, h('div.hud-label', cfg.mode === 'daily' ? `Daily Catch · ${cfg.date}` : cfg.mode === 'coop' ? `With friends${o.rank ? ` · you finished #${o.rank}` : ''}` : 'Run complete'), score),
-            pb ? h('span.chip.gold', { style: 'margin:0 0 14px 12px;font-size:18px;animation:pulse 1s infinite' }, '★ Personal best') : '',
+            pb
+              ? h('span.chip.gold', { style: 'margin:0 0 14px 12px;font-size:18px;animation:pulse 1s infinite' }, '★ New high score')
+              : o.topPlace
+                ? h('span.chip', { style: 'margin:0 0 14px 12px;font-size:18px' }, `🏆 Your #${o.topPlace} best run`)
+                : '',
             h('div.grow'),
             h('div.col', { style: 'gap:2px;text-align:right' }, ...cfg.holes.map((x, i) => h('div', `${x.name}: `, h('b', pts(run.st.results[i]?.total ?? 0)), run.st.results[i]?.missionDone ? ' ✅' : ''))),
           ),
@@ -162,7 +204,7 @@ export function resultsScreen(run: Run, o: { best?: Catch; dailyReward: Ornament
               found.length ? h('div', h('div.hud-label', 'Ornaments found'), h('div.row.wrap', { style: 'gap:6px' }, ...found.map((x) => ornPic(x, 64, { title: x.name })))) : '',
               o.dailyReward ? h('div', h('div.hud-label', 'Daily reward'), ornCard(o.dailyReward, { compact: true })) : '',
             ),
-            ranking ? h('div', { style: 'width:420px' }, ranking) : '',
+            h('div', { style: 'width:420px' }, ranking || standings(run)),
           ),
           buttons,
         ),

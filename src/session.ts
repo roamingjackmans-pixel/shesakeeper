@@ -1,6 +1,6 @@
 // Who is playing and their save. Signed in, the save lives on Shoallhell's server (shared accounts) and is written a
 // moment after anything changes; "play offline" keeps it in this browser instead.
-import { cleanProfile, newProfile, type Profile } from './core/profile';
+import { cleanProfile, newProfile, TOP_RUNS, type Profile } from './core/profile';
 import type { Ornament } from './core/ornament';
 import { api, ApiError, getToken, setToken, type User } from './net/api';
 import { Net } from './net/socket';
@@ -138,6 +138,9 @@ export function mergeProfiles(server: Profile, local: Profile, gone: ReadonlySet
   p.settings = local.settings;
   p.tips = [...new Set([...p.tips, ...local.tips])];
   p.history = [...local.history, ...p.history].sort((a, b) => b.at - a.at).filter((h, i, all) => all.findIndex((x) => x.at === h.at) === i).slice(0, 10);
+  p.top = [...local.top, ...p.top].filter((h, i, all) => all.findIndex((x) => x.at === h.at) === i).sort((a, b) => b.score - a.score || a.at - b.at).slice(0, TOP_RUNS);
+  if (local.week.start > p.week.start) p.week = { ...local.week };
+  else if (local.week.start === p.week.start) p.week = { start: p.week.start, best: Math.max(p.week.best, local.week.best), runs: Math.max(p.week.runs, local.week.runs) };
   return cleanProfile(p);
 }
 

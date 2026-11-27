@@ -114,6 +114,8 @@ export const api = {
   removeFriend: (id: string) => call<{ ok: boolean; view: FriendsView }>('POST', '/friends/remove', { id }),
   daily: (date: string) => call<{ date: string; rows: DailyRow[] }>('GET', `/sak/daily?date=${encodeURIComponent(date)}`),
   postDaily: (date: string, score: number, best: string, fish: number) => call<{ ok: boolean; best: number }>('POST', '/sak/daily', { date, score, best, fish }),
+  /** you and your friends: best run ever, this week's best, today's daily (date: today(), US Central) */
+  board: (date: string) => call<BoardView>('GET', `/sak/board?date=${encodeURIComponent(date)}`),
 };
 
 export interface DailyRow {
@@ -124,4 +126,29 @@ export interface DailyRow {
   best: string;
   fish: number;
   me: boolean;
+}
+
+export interface BoardRow {
+  userId: string;
+  name: string;
+  me: boolean;
+  /** best run ever, and what it was */
+  best: number;
+  top: { score: number; at: number; mode: string; best: string } | null;
+  /** best run this week (0: hasn't fished this week) */
+  week: number;
+  weekRuns: number;
+  /** today's Daily Catch best (0: not played today) */
+  daily: number;
+  dailyBest: string;
+  runs: number;
+  fish: number;
+  marlene: number;
+  /** biggest fish ever: species id and length */
+  biggest: { id: string; cm: number } | null;
+}
+export interface BoardView {
+  week: string;
+  date: string;
+  rows: BoardRow[];
 }

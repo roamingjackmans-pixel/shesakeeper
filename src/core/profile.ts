@@ -9,6 +9,8 @@ import type { AnglerLook, Catch, Loadout } from './types';
 
 export const GLOVEBOX_MAX = 60;
 export const DASH_SLOTS = 3;
+/** the high-score table keeps this many runs */
+export const TOP_RUNS = 10;
 
 export interface LogEntry {
   n: number;
@@ -24,6 +26,11 @@ export interface HistoryRow {
   holes: string[];
   rank?: number;
   players?: number;
+  /** fish landed in the run */
+  fish?: number;
+  /** the run's best catch, e.g. "62 cm Northern Pike" */
+  best?: string;
+  marlene?: boolean;
 }
 
 export interface Settings {
@@ -40,12 +47,17 @@ export interface Profile {
   nextOrn: number;
   loadout: Loadout;
   log: Record<string, LogEntry>;
-  stats: { runs: number; best: number; fish: number; marlene: number; dailies: number; total: number };
+  stats: { runs: number; best: number; fish: number; marlene: number; dailies: number; total: number; mostFish: number; bestDaily: number; bestCoop: number };
   daily: { date: string; best: number; reward: boolean };
+  /** this week's best (weeks start on Monday, US Central, like the daily) */
+  week: { start: string; best: number; runs: number };
   look: AnglerLook;
   settings: Settings;
   tips: string[];
+  /** the last ten runs */
   history: HistoryRow[];
+  /** the ten best runs ever, best first */
+  top: HistoryRow[];
 }
 
 export function newProfile(): Profile {
@@ -56,12 +68,14 @@ export function newProfile(): Profile {
     nextOrn: 1,
     loadout: { ...STARTER, dash: [null, null, null], charms: [] },
     log: {},
-    stats: { runs: 0, best: 0, fish: 0, marlene: 0, dailies: 0, total: 0 },
+    stats: { runs: 0, best: 0, fish: 0, marlene: 0, dailies: 0, total: 0, mostFish: 0, bestDaily: 0, bestCoop: 0 },
     daily: { date: '', best: 0, reward: false },
+    week: { start: '', best: 0, runs: 0 },
     look: { hat: 0, hatColor: 0, jacket: 0, skin: 1, hair: 0 },
     settings: { sfx: 0.8, music: 0.5, shake: true, hints: true },
     tips: [],
     history: [],
+    top: [],
   };
   // a first ornament on the dash, so it never starts bare
   const o = rollOrnament(new Rng('starter'), 'starter', 'o0', Date.now(), { count: 1, type: 'bobble' });
@@ -115,8 +129,59 @@ export function cleanProfile(raw: unknown): Profile {
     p.settings.hints = r.settings.hints !== false;
   }
   if (Array.isArray(r.tips)) p.tips = r.tips.filter((t) => typeof t === 'string').slice(0, 50);
-  if (Array.isArray(r.history)) p.history = r.history.filter((h) => h && typeof h === 'object' && typeof h.score === 'number').slice(0, 10);
+  if (r.week && typeof r.week === 'object' && typeof r.week.start === 'string') p.week = { start: r.week.start.slice(0, 10), best: num(r.week.best, 0, 0), runs: num(r.week.runs, 0, 0) };
+  if (Array.isArray(r.history)) p.history = cleanRows(r.history).slice(0, 10);
+  // saves from before the high-score table start it from their recent runs
+  const top = Array.isArray(r.top) ? cleanRows(r.top) : p.history.filter((x) => x.score > 0);
+  p.top = top.sort((a, b) => b.score - a.score || a.at - b.at).slice(0, TOP_RUNS);
+  for (const x of [...p.history, ...p.top]) {
+    if (x.mode === 'daily') p.stats.bestDaily = Math.max(p.stats.bestDaily, x.score);
+    if (x.mode === 'coop') p.stats.bestCoop = Math.max(p.stats.bestCoop, x.score);
+    p.stats.mostFish = Math.max(p.stats.mostFish, x.fish ?? 0);
+  }
+  p.stats.bestDaily = Math.max(p.stats.bestDaily, p.daily.best);
   return p;
+}
+
+function cleanRows(rows: unknown[]): HistoryRow[] {
+  const out: HistoryRow[] = [];
+  for (const x of rows) {
+    if (!x || typeof x !== 'object') continue;
+    const r = x as Partial<HistoryRow>;
+    if (typeof r.score !== 'number' || !Number.isFinite(r.score)) continue;
+    const row: HistoryRow = {
+      at: num(r.at, 0, 0),
+      mode: typeof r.mode === 'string' ? r.mode.slice(0, 10) : 'solo',
+      score: num(r.score, 0, 0),
+      holes: Array.isArray(r.holes) ? r.holes.filter((s) => typeof s === 'string').slice(0, 5) : [],
+    };
+    if (typeof r.rank === 'number') row.rank = num(r.rank, 1, 1, 4);
+    if (typeof r.players === 'number') row.players = num(r.players, 1, 1, 4);
+    if (typeof r.fish === 'number') row.fish = num(r.fish, 0, 0, 999);
+    if (typeof r.best === 'string') row.best = r.best.slice(0, 40);
+    if (r.marlene) row.marlene = true;
+    out.push(row);
+  }
+  return out;
+}
+
+/**
+ * A finished run goes into the records: recent runs, the ten best, this week's best, and the per-mode bests.
+ * `week` is weekOf(today()). Returns the run's place in the top ten (0 when it didn't make it).
+ */
+export function recordRun(p: Profile, row: HistoryRow, week: string): number {
+  p.history = [row, ...p.history].slice(0, 10);
+  if (p.week.start !== week) p.week = { start: week, best: 0, runs: 0 };
+  p.week.runs += 1;
+  p.week.best = Math.max(p.week.best, row.score);
+  p.stats.mostFish = Math.max(p.stats.mostFish, row.fish ?? 0);
+  if (row.mode === 'daily') p.stats.bestDaily = Math.max(p.stats.bestDaily, row.score);
+  if (row.mode === 'coop') p.stats.bestCoop = Math.max(p.stats.bestCoop, row.score);
+  if (row.score <= 0) return 0;
+  const top = [...p.top, row].sort((a, b) => b.score - a.score || a.at - b.at);
+  const place = top.indexOf(row) + 1;
+  p.top = top.slice(0, TOP_RUNS);
+  return place <= TOP_RUNS ? place : 0;
 }
 
 export function newOrnamentId(p: Profile): string {

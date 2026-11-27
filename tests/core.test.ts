@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { Angler } from '../src/core/angler';
 import { botHold, LaggedEye, newBar, stepBar, type BarParams } from '../src/core/catchbar';
 import { CURSE_ALWAYS, ornamentPrice, rollOrnament, validOrnament } from '../src/core/ornament';
-import { cleanProfile, newProfile } from '../src/core/profile';
+import { cleanProfile, newProfile, recordRun, TOP_RUNS, type HistoryRow } from '../src/core/profile';
 import { Rng } from '../src/core/rng';
-import { buildRun, dailyMods, dailyRun, holeResult, loadoutStats } from '../src/core/run';
+import { buildRun, dailyMods, dailyRun, holeResult, loadoutStats, weekOf } from '../src/core/run';
 import { newShop, rerollCost } from '../src/core/shop';
 import { derived } from '../src/core/stats';
 import { HoleWorld } from '../src/core/world';
@@ -281,5 +281,61 @@ describe('profile and shop', () => {
     for (const it of s.items) if (it.kind === 'gear') expect(p.owned).not.toContain(it.id);
     const st = loadoutStats(p.loadout, p.ornaments, []);
     expect(rerollCost(1, st)).toBeGreaterThan(rerollCost(0, st));
+  });
+});
+
+describe('high scores', () => {
+  const run = (score: number, at: number, mode = 'solo', fish = 3): HistoryRow => ({ at, mode, score, holes: ['A', 'B', 'C'], fish, best: '20 cm Bluegill' });
+
+  it('weeks start on Monday', () => {
+    expect(weekOf('2026-11-26')).toBe('2026-11-23'); // a Thursday
+    expect(weekOf('2026-11-23')).toBe('2026-11-23');
+    expect(weekOf('2026-11-29')).toBe('2026-11-23'); // Sunday is the week's last day
+    expect(weekOf('2026-11-30')).toBe('2026-11-30');
+  });
+
+  it('keeps the ten best runs, best first, and says where a run placed', () => {
+    const p = newProfile();
+    const scores = [500, 900, 100, 1200, 300, 800, 50, 700, 650, 400, 1000, 20];
+    const places = scores.map((s, i) => recordRun(p, run(s, i + 1), '2026-11-23'));
+    expect(p.top).toHaveLength(TOP_RUNS);
+    expect(p.top.map((r) => r.score)).toEqual([...scores].sort((a, b) => b - a).slice(0, TOP_RUNS));
+    expect(places[0]).toBe(1); // the first run is the best so far
+    expect(places[3]).toBe(1); // 1200 beats everything
+    expect(places[10]).toBe(2); // 1000: second to 1200
+    expect(places[11]).toBe(0); // 20 doesn't make the top ten
+    expect(p.history).toHaveLength(10);
+    expect(p.history[0]!.score).toBe(20); // recent runs are newest first
+    expect(recordRun(p, run(0, 99), '2026-11-23')).toBe(0); // a blank run never enters the table
+  });
+
+  it('tracks this week, resetting on a new week, and per-mode bests', () => {
+    const p = newProfile();
+    recordRun(p, run(600, 1), '2026-11-16');
+    recordRun(p, run(400, 2, 'daily', 9), '2026-11-23');
+    recordRun(p, run(300, 3, 'coop'), '2026-11-23');
+    expect(p.week).toEqual({ start: '2026-11-23', best: 400, runs: 2 });
+    expect(p.stats.bestDaily).toBe(400);
+    expect(p.stats.bestCoop).toBe(300);
+    expect(p.stats.mostFish).toBe(9);
+  });
+
+  it('survives the save round trip, and older saves start their table from recent runs', () => {
+    const p = newProfile();
+    for (let i = 0; i < 4; i++) recordRun(p, run(100 * (i + 1), i + 1, i === 2 ? 'daily' : 'solo'), '2026-11-23');
+    const back = cleanProfile(JSON.parse(JSON.stringify(p)));
+    expect(back.top).toEqual(p.top);
+    expect(back.week).toEqual(p.week);
+    const old = JSON.parse(JSON.stringify(p));
+    delete old.top;
+    delete old.week;
+    delete old.stats.bestDaily;
+    const migrated = cleanProfile(old);
+    expect(migrated.top.map((r) => r.score)).toEqual([400, 300, 200, 100]);
+    expect(migrated.stats.bestDaily).toBe(300);
+    // junk rows are dropped, not trusted
+    const junk = cleanProfile({ ...old, top: [{ score: 'lots' }, null, { score: 5e9, at: -4, mode: 7, holes: 'x' }] });
+    expect(junk.top).toHaveLength(1);
+    expect(junk.top[0]).toMatchObject({ at: 0, mode: 'solo', holes: [] });
   });
 });

@@ -53,6 +53,14 @@ export function today(now = new Date()): string {
   return f.format(now);
 }
 
+/** the Monday that starts the week of a YYYY-MM-DD day (the weekly board's key) */
+export function weekOf(date: string): string {
+  const d = new Date(`${date}T12:00:00Z`);
+  if (!Number.isFinite(d.getTime())) return '';
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+}
+
 export function dailyMods(date: string): string[] {
   const rng = new Rng(`sak-daily-mods:${date}`);
   const out: string[] = [];
