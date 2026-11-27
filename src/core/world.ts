@@ -28,7 +28,7 @@ export interface WorldSnap {
 /** how far the lake goes (metres): sideways from the middle, and out from the shore */
 export const LAKE = { halfWidth: 40, near: 3, far: 58 };
 /** bubbles spawn inside this box */
-const SPAWN = { x: 30, zMin: 8, zMax: 48 };
+const SPAWN = { x: 30, zMin: 8, zMax: 55 };
 
 export class HoleWorld {
   t = 0;

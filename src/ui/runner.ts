@@ -262,6 +262,7 @@ export class Run {
         onEvent: (e, a) => this.onFishEvent(e, a),
         onDone: () => this.fishDone(),
         onQuit: () => (this.solo ? this.leave() : void import('./lobby').then((m) => m.leaveCoop())),
+        onShove: this.solo ? undefined : (to, s) => this.shove(to, s),
         send: this.link ? (m) => this.fromFishing(m) : undefined,
       });
       if (this.role === 'host') {
@@ -488,7 +489,11 @@ export class Run {
         if (msg.legend && w && w.legend !== 1) this.link!.send({ t: 'deny', to: from });
         else w?.claim(Number(msg.id));
       } else if (t === 'legendLost') this.fishing?.world.legendGone();
-      else if (t === 'done') {
+      else if (t === 'push') {
+        // a guest shoved someone: us, or pass it on with who did it
+        if (msg.to === this.me) this.takeShove({ ...msg, fromName: pl.name });
+        else this.link!.send({ ...msg, t: 'push', from, fromName: pl.name });
+      } else if (t === 'done') {
         if (this.st.phase !== 'fish') return;
         pl.done = true;
         pl.score = Number(msg.score) || pl.score;
@@ -519,7 +524,20 @@ export class Run {
       } else if (t === 'feed') {
         if (!String(msg.text).startsWith(displayName() + ' ')) this.fishing?.feed(String(msg.text));
       } else if (t === 'deny' && msg.to === this.me) this.fishing?.denyLegend();
+      else if (t === 'push' && msg.to === this.me) this.takeShove(msg);
     }
+  }
+
+  /** we shoved someone: a guest tells the host, who passes it on (or takes it, if the host is the one shoved) */
+  private shove(to: string, s: { str: number; spook: number; dir: number }): void {
+    const msg = { t: 'push', to, from: this.me, fromName: displayName(), str: s.str, spook: s.spook, dir: s.dir };
+    this.link?.send(msg);
+  }
+
+  /** a shove reached us (numbers clamped: they came over the network) */
+  private takeShove(m: Record<string, unknown>): void {
+    const num = (v: unknown, lo: number, hi: number) => Math.max(lo, Math.min(hi, Number(v) || 0));
+    this.fishing?.pushed(num(m.str, 0, 4), num(m.spook, 0, 3), Math.sign(Number(m.dir)) || 1, String(m.fromName || 'Someone').slice(0, 24));
   }
 
   /** a player whose game went away mid-run (they refreshed): they no longer hold anyone up */

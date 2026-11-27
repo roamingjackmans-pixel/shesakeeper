@@ -26,13 +26,15 @@ export class Bot {
         if (this.wait > 0) break;
         const reach = a.reach;
         const bubbles = w.bubbles.filter((b) => Math.hypot(b.x - a.x, b.z) <= reach * 0.98 && b.z > 4);
-        bubbles.sort((p, q) => Number(!!q.legend) - Number(!!p.legend) || p.z - q.z);
-        const b = bubbles[0];
+        // Her ripple first, then the furthest bubble, but only one out where the good fish are (a near bubble just
+        // brings small fry); otherwise a long cast
+        bubbles.sort((p, q) => Number(!!q.legend) - Number(!!p.legend) || q.z - p.z);
+        const b = bubbles.find((x) => x.legend || x.z >= reach * 0.62);
         if (b) {
           const aim = Math.atan2(b.x - a.x, b.z);
           const dist = Math.hypot(b.x - a.x, b.z);
           this.target = { aim, power: (dist - BASE.castMin) / (reach - BASE.castMin) };
-        } else this.target = { aim: this.rng.range(-0.6, 0.6), power: this.rng.range(0.5, 1) };
+        } else this.target = { aim: this.rng.range(-0.35, 0.35), power: this.rng.range(0.85, 1) };
         inp.aim = this.target.aim;
         inp.pressed = true;
         inp.held = true;

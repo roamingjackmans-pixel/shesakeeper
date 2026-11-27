@@ -92,6 +92,11 @@ export const STATS = {
   pTreasure: pct('Fish that bring treasure +{v} points', 'Fish that bring treasure −{v} points', 'Lucky'),
   missionMult: { fmt: 'mult', pos: 'Mission multiplier +×{v}', neg: 'Mission multiplier −×{v}', short: 'Mission' } as StatDef,
   streak: { fmt: 'chance', pos: '+{v} streak bonus per fish in a row', neg: '−{v} streak bonus per fish in a row', short: 'Streak' } as StatDef,
+  shove: pct('Your shoves hit {v} harder', 'Your shoves hit {v} softer', 'Shove'),
+  shoveReach: pct('+{v} shove reach', '−{v} shove reach', 'Shove reach'),
+  shoveCd: pct('Shove recharges {v} faster', 'Shove recharges {v} slower', 'Shove recharge'),
+  shoveSpook: pct('Shoved anglers’ fish slip {v} faster', 'Shoved anglers’ fish slip {v} slower', 'Spook'),
+  steady: pct('Shoves rock you {v} less', 'Shoves rock you {v} more', 'Steady'),
   shopDiscount: pct('Shop prices {v} lower', 'Shop prices {v} higher', 'Discount'),
   rerollDiscount: pct('Rerolls cost {v} less', 'Rerolls cost {v} more', 'Reroll'),
   freeReroll: { fmt: 'n', pos: '{v} free reroll every shop', neg: '{v} fewer free rerolls', short: 'Free reroll' } as StatDef,
@@ -185,6 +190,13 @@ export const BASE = {
   smallCm: 22,
   bigCm: 60,
   holeSeconds: 150,
+  /** co-op shoves: reach along the shore (m), seconds to recharge, how long the catch bar wobbles, extra slip */
+  shoveRange: 7,
+  shoveCooldown: 14,
+  shoveTime: 1.8,
+  shoveSpook: 0.25,
+  /** how fast an angler walks along the shore (m/s) */
+  walk: 7,
 };
 
 /** the stats as the rules use them: the totals turned into the actual numbers */
@@ -211,6 +223,13 @@ export function derived(s: Stats) {
     hookSave: Math.max(0, Math.min(0.75, s.hookSave)),
     legend: Math.max(0, Math.min(1, BASE.legendChance + s.legend)),
     streakStep: Math.max(0, BASE.streakStep + s.streak),
+    /** co-op shoves: how hard yours land, how far you can reach (m), the recharge (s), the extra slip, how much
+     *  of an incoming shove you take */
+    shoveStr: p(s.shove, -0.8),
+    shoveRange: BASE.shoveRange * p(s.shoveReach, -0.8),
+    shoveCooldown: BASE.shoveCooldown / p(s.shoveCd, -0.6),
+    shoveSpook: Math.max(0, BASE.shoveSpook + s.shoveSpook),
+    shoveTaken: Math.max(0.2, Math.min(2, 1 - s.steady)),
   };
 }
 export type Derived = ReturnType<typeof derived>;

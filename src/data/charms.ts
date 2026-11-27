@@ -65,6 +65,8 @@ export const CHARMS: CharmDef[] = [
   { id: 'hands', name: 'Heavy Hands', price: 260, text: 'Fish 12% bigger.', glyph: '✊', color: '#8a5a3a', bonus: { fishSize: 0.12 } },
   { id: 'quick', name: 'Quick Draw', price: 260, text: 'Fish reeled in under 6 seconds ×2.', glyph: '⏱', color: '#e8c030', mult: (c) => (c.reelTime < 6 ? 1 : 0) },
   { id: 'bucket', name: 'Bait Bucket', price: 200, text: 'Bites come 30% faster.', glyph: '🪣', color: '#5a8a6a', bonus: { biteSpeed: 0.3 } },
+  { id: 'bully', name: 'Bully', price: 260, text: 'With friends: shoves hit 50% harder and recharge 30% faster.', glyph: '💪', color: '#c8503a', bonus: { shove: 0.5, shoveCd: 0.3 } },
+  { id: 'thick', name: 'Thick Skin', price: 200, text: 'With friends: shoves rock you 60% less.', glyph: '🛡', color: '#5a7a5a', bonus: { steady: 0.6 } },
   { id: 'compass', name: 'Pocket Compass', price: 220, text: 'Casts go 25% farther; long casts +40% points.', glyph: '➚', color: '#3a6a9a', bonus: { castDist: 0.25, pLongCast: 0.4 } },
 ];
 export const CHARM: Record<string, CharmDef> = Object.fromEntries(CHARMS.map((c) => [c.id, c]));

@@ -63,6 +63,8 @@ export interface FishingOpts {
   send?: (msg: Record<string, unknown>) => void;
   /** the player chose to quit the run (solo) or leave the game (co-op) */
   onQuit?: () => void;
+  /** co-op: we shoved another angler */
+  onShove?: (to: string, s: { str: number; spook: number; dir: number }) => void;
 }
 
 const TIPS: Record<string, string> = {
@@ -99,7 +101,12 @@ export class FishingSession {
     this.o = o;
     this.world = new HoleWorld(o.spec, o.mods);
     const mine = o.seats.find((s) => s.id === o.me)!;
-    this.angler = new Angler({ x: mine.x, seed: o.seed, stats: o.stats, hole: o.spec, mods: o.mods, charms: o.charms });
+    // your own stretch of shore: halfway to each neighbour (a little short of it), or 14 m each way alone
+    const xs = o.seats.map((s) => s.x).sort((a, b) => a - b);
+    const left = xs.filter((x) => x < mine.x).pop();
+    const right = xs.find((x) => x > mine.x);
+    const lane: [number, number] = [left === undefined ? Math.max(-36, mine.x - 14) : (left + mine.x) / 2 + 1.5, right === undefined ? Math.min(36, mine.x + 14) : (right + mine.x) / 2 - 1.5];
+    this.angler = new Angler({ x: mine.x, seed: o.seed, stats: o.stats, hole: o.spec, mods: o.mods, charms: o.charms, lane });
     this.world.legendChance = this.angler.d.legend;
     this.world.rate = 1 + Math.max(-0.5, o.stats.bubbleRate);
     this.scene = new LakeScene(o.spec);
@@ -162,7 +169,11 @@ export class FishingSession {
       this.input.held = false;
     };
     const kd = (e: KeyboardEvent) => {
-      if (e.repeat || this.paused) return;
+      if (this.paused) return;
+      if (e.code === 'KeyA' || e.code === 'ArrowLeft') this.keys.left = true;
+      if (e.code === 'KeyD' || e.code === 'ArrowRight') this.keys.right = true;
+      if (e.repeat) return;
+      if (e.code === 'KeyE') this.tryShove();
       if (e.code === 'Space') {
         e.preventDefault();
         this.input.pressed = true;
@@ -175,6 +186,8 @@ export class FishingSession {
       }
     };
     const ku = (e: KeyboardEvent) => {
+      if (e.code === 'KeyA' || e.code === 'ArrowLeft') this.keys.left = false;
+      if (e.code === 'KeyD' || e.code === 'ArrowRight') this.keys.right = false;
       if (e.code === 'Space') {
         e.preventDefault();
         if (this.input.held) this.input.released = true;
@@ -184,6 +197,7 @@ export class FishingSession {
     const blur = () => {
       if (this.input.held) this.input.released = true;
       this.input.held = false;
+      this.keys.left = this.keys.right = false;
     };
     window.addEventListener('pointermove', toStage);
     window.addEventListener('pointerdown', down);
@@ -213,6 +227,45 @@ export class FishingSession {
   private lastTick = performance.now();
   /** solo only: the menu is open and the lake stands still */
   private paused = false;
+  private keys = { left: false, right: false };
+  /** seconds until the next shove (co-op) */
+  shoveCd = 0;
+
+  /** E: shove the nearest angler within reach (co-op only) */
+  private tryShove(): void {
+    if (!this.o.onShove || this.ended) return;
+    const head = this.standY();
+    if (this.shoveCd > 0) return;
+    const range = this.angler.d.shoveRange;
+    let best: LakeAngler | null = null;
+    for (const a of this.scene.anglers) {
+      if (a.local || a.view.phase === 'done') continue;
+      if (Math.abs(a.view.x - this.angler.x) <= range && (!best || Math.abs(a.view.x - this.angler.x) < Math.abs(best.view.x - this.angler.x))) best = a;
+    }
+    if (!best) {
+      this.scene.float('Nobody close enough', head.x, head.y, '#cfe8ff', 20);
+      return;
+    }
+    const dir = Math.sign(best.view.x - this.angler.x) || 1;
+    this.angler.pushT = 0.4;
+    this.angler.pushDir = dir;
+    this.shoveCd = this.angler.d.shoveCooldown;
+    audio.sfx('bump');
+    this.scene.float('SHOVE!', head.x + dir * 60, head.y, '#ffb36a', 30);
+    this.o.onShove(best.id, { str: this.angler.d.shoveStr, spook: this.angler.d.shoveSpook, dir });
+    this.o.send?.({ t: 'feed', text: `shoved ${best.name}!` });
+  }
+
+  /** another angler shoved us */
+  pushed(str: number, spook: number, dir: number, from: string): void {
+    const hit = this.angler.shoved(str, spook, dir);
+    if (!hit) return;
+    const head = this.standY();
+    audio.sfx('bump');
+    audio.sfx('bad');
+    this.scene.float(`${from} shoved you!`, head.x, head.y - 20, '#ff9a7a', 28);
+    if (session.profile.settings.shake) this.scene.shake = 6 + hit * 4;
+  }
 
   pauseMenu(): void {
     const solo = !this.o.send;
@@ -264,6 +317,8 @@ export class FishingSession {
       const b = autoBot.input(this.angler, this.world, dt);
       Object.assign(this.input, b, { pressed: b.pressed || this.input.pressed });
     } else this.input.aim = this.aimFromMouse();
+    this.input.move = (this.keys.right ? 1 : 0) - (this.keys.left ? 1 : 0);
+    this.shoveCd = Math.max(0, this.shoveCd - dt);
     const ev = this.angler.update(dt, this.input, this.world);
     this.input.pressed = false;
     this.input.released = false;
@@ -473,6 +528,15 @@ export class FishingSession {
     this.els.board = h('div.board');
     const charms = this.o.charms.length ? h('div.row', { style: 'gap:6px;position:absolute;left:20px;bottom:20px;pointer-events:auto' }, ...this.o.charms.map((c) => charmIcon(c, true))) : '';
     const mods = this.o.mods.length ? h('div.row', { style: 'gap:6px;position:absolute;left:20px;bottom:76px' }, ...this.o.mods.map((m) => h('span.chip', { title: MOD[m]?.text }, `${MOD[m]?.glyph} ${MOD[m]?.name}`))) : '';
+    // keys: walk, and in co-op the shove with its recharge
+    this.els.shoveBar = h('i');
+    this.els.shoveText = h('b', 'Shove');
+    const keys = h(
+      'div.hud-box.row',
+      { style: 'position:absolute;right:20px;bottom:20px;gap:14px;padding:6px 12px;font-size:15px' },
+      h('span', h('b', 'A D'), ' walk'),
+      this.o.onShove ? h('span.row', { style: 'gap:6px' }, h('b', 'E'), this.els.shoveText, h('span.timerbar', { style: 'width:70px;height:12px' }, this.els.shoveBar)) : '',
+    );
     this.hud = h(
       'div.pass',
       { style: 'position:absolute;inset:0' },
@@ -485,7 +549,8 @@ export class FishingSession {
       ),
       charms,
       mods,
-      (this.els.feed = h('div.feed')),
+      keys,
+      (this.els.feed = h('div.feed', { style: 'bottom:70px' })),
     );
     root.appendChild(this.hud);
     // a pip per fish for small goals; a counter for big ones
@@ -513,6 +578,12 @@ export class FishingSession {
       this.els.count!.textContent = goal > 8 || got >= goal ? `${Math.min(got, goal)}/${goal}${got >= goal ? ' ✓' : ''}` : '';
       this.els.mission!.classList.toggle('done', got >= goal);
     });
+    if (this.o.onShove) {
+      const cd = this.angler.d.shoveCooldown;
+      const ready = this.shoveCd <= 0;
+      this.set('shoveBar', String(Math.round((1 - this.shoveCd / cd) * 20)), (el) => (el.style.width = `${(1 - this.shoveCd / cd) * 100}%`));
+      this.set('shoveText', ready ? 'Shove!' : `${Math.ceil(this.shoveCd)}s`);
+    }
     if (this.o.board) {
       const rows = this.o.board().sort((a, b) => b.score - a.score);
       this.set('board', rows.map((r) => `${r.id}:${r.score}`).join('|'), () =>

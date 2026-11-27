@@ -27,8 +27,11 @@ export function priceMul(st: Stats): number {
   return clamp(1 - st.shopDiscount, 0.4, 1.6);
 }
 
+/** rerolls are dear on purpose: $1,500, then double every time at the same stop (perks can take some off) */
+export const REROLL_BASE = 1500;
+
 export function rerollCost(n: number, st: Stats): number {
-  return Math.max(0, Math.round(((40 + 25 * n) * clamp(1 - st.rerollDiscount, 0.2, 2)) / 5) * 5);
+  return Math.max(0, Math.round((REROLL_BASE * Math.pow(2, n) * clamp(1 - st.rerollDiscount, 0.2, 2)) / 50) * 50);
 }
 
 /** gear the player could still buy (not owned, not an earned special) */

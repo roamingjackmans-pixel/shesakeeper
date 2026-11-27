@@ -14,13 +14,21 @@ friends on the same lake. Email + password accounts (the same ones as Shoallhell
 - **Casting.** Move the mouse to aim (a dotted line shows your reach). Hold the button (or Space) and the cast meter
   swings up and down; let go to cast. A ring shows where the bobber will land. The very top of the meter is a
   **Perfect Cast** (farther, and better catches).
+- **Distance.** Every species has a distance out from the shore it bites from (the dotted aim line is marked in
+  metres; the fish log and the gear-up screen show each fish's distance). The bamboo pole reaches about 27 m: the small
+  fry and a few more. Half the species need a really good rod or range perks; the giants (sturgeon, halibut,
+  alligator gar, bluefin tuna) need about 55 m, the longest cast there is.
+- **Walk.** A/D or the arrow keys walk you along the shore for a better angle (each co-op angler has their own stretch).
 - **Bubbles.** Spots of fizz come and go on the water. Cast into one and a fish bites in a second or two instead of
   five to ten, and better fish live there. Land dead centre for a **Bullseye**. Each spot holds one to three fish,
   then pops; in co-op you race each other for them.
 - **The bite.** The bobber dips for nibbles (wait…) and plunges with a **!** for the real bite: click to hook it
   before the ring runs out.
 - **Reeling** is the Stardew-style catch bar: hold to lift the green bar, let go and it falls (and bounces). Keep the
-  fish inside and the catch meter fills; let it out and it drains. Fish dart, sink, float and lunge by species.
+  fish inside and the catch meter fills; let it out and it drains. Every species has a movement style, Stardew
+  style: Mixed, Darter, Smooth, Sinker, Floater, plus Wave (eels), Burster (pike, muskie, gar: still, then a bolt),
+  Hopper (trout), Heavy (catfish, sturgeon: slow hard pulls down) and Runner (mackerel, tuna: end to end). The style
+  shows under the reel and in the fish log.
   Never let it leave the bar for a **Perfect** catch. Sometimes a **treasure chest** shows up on the track: hold the
   bar over it too, for cash, a run charm or a dash ornament.
 - **Points** come from the species, its size (bigger is worth a lot more), quality stars (Silver ×1.25, Gold ×1.5,
@@ -38,7 +46,7 @@ friends on the same lake. Email + password accounts (the same ones as Shoallhell
 
 ### Gear, ornaments and charms
 
-- **Gear** (11 rods, 14 lures, 11 bait) is bought at the bait shop during a run and **kept forever**. Each piece is
+- **Gear** (12 rods, 16 lures, 12 bait) is bought at the bait shop during a run and **kept forever**. Each piece is
   good at something (a bigger catch bar, reel speed, cast range, bite speed, attracting catfish or trout, treasure,
   double catches…). There's no best set: it depends on the mission.
 - **Dash ornaments** are rolled relics, Nightreign style. Each has one to three good perks with random values in a
@@ -46,10 +54,15 @@ friends on the same lake. Email + password accounts (the same ones as Shoallhell
   bigger fish or double catches) always does. Tiers: Plastic, Brass, Silver, Gold, and Pearl (Marlene's). Three ride
   on your dash, visible in the truck on every drive (click one to flick it and read its perks). Keep up to 60 in the
   glovebox; sell the rest at the shop. Once you own all the gear, the hunt is for the perfect ornaments.
-- **Run charms** (28, Balatro-joker-like) last until the run ends: *Last Call* (last 45 s ×2), *Collector's Badge*,
+- **Run charms** (30, Balatro-joker-like) last until the run ends: *Last Call* (last 45 s ×2), *Collector's Badge*,
   *Glass Hook*, *Piggy Bank* interest, *Double Down*… Three can be on at a hole.
 - **Cash and score.** Every point you catch is also a dollar to spend this run. Spending never lowers your score.
-  Cash doesn't carry over between runs; what you buy does. Rerolls cost $40, then $65, $90…
+  Cash doesn't carry over between runs; what you buy does. Gear costs $700–$5,200, so collecting all of it takes a
+  strong player 50+ runs (`tests/progression.test.ts` plays whole careers to check). Rerolls cost $1,500, then
+  double every time at the same stop.
+- **Shoves (with friends).** Walk up to another angler and press E: their catch bar wobbles and their fish slips
+  faster for a couple of seconds (14 s recharge). The Brawler's Pole, Splash Bomb, Chum Slick, the Bully charm and
+  Pushy/Rangy/Restless/Sneaky perks make shoves nastier; the Anchor Weight, Thick Skin and Sturdy perks shrug them off.
 
 ### Modes
 

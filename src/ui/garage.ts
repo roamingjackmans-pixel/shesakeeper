@@ -5,7 +5,7 @@ import { audio } from '../audio/audio';
 import { GLOVEBOX_MAX, ornamentById } from '../core/profile';
 import { loadoutStats, today } from '../core/run';
 import type { Ornament } from '../core/ornament';
-import { ALL_FISH, FISH } from '../data/fish';
+import { ALL_FISH, FISH, MOVES } from '../data/fish';
 import { ALL_GEAR, BAITS, LURES, RODS, type Gear } from '../data/gear';
 import { TIERS } from '../data/perks';
 import { fishPic, gearPic, ornPic } from '../render/pics';
@@ -112,15 +112,18 @@ export function howToPlay(): void {
         'div.grid',
         { style: 'grid-template-columns:1fr 1fr;gap:10px' },
         sec('🎯', 'Aim and cast', 'Move the mouse to aim. Hold the button (or Space): the cast meter swings up and down. Let go to cast; the ring shows where it lands.', 'The very top of the meter is a Perfect Cast: farther, and better catches.'),
+        sec('📏', 'Cast further, catch bigger', 'Most fish only bite far out: the dotted line shows metres from shore, and the fish log says how far each one lives. Your rod sets your reach.', 'Starter gear reaches the small fry. Half the fish need a really good rod; the giants need the longest cast there is.'),
         sec('🫧', 'Bubbles', 'Cast into a bubble spot and a fish bites in a second or two, and better fish live there. Dead centre is a Bullseye.', 'Each spot holds a few fish, then pops. With friends, it’s a race.'),
+        sec('🚶', 'Walk the shore', 'A and D (or the arrow keys) walk you left and right along the shore for a better angle on a bubble.', 'With friends, each angler has their own stretch.'),
+        sec('🤜', 'Shove (with friends)', 'Walk up to another angler and press E: their catch bar wobbles and their fish slips faster for a moment.', 'Some gear, charms and perks shove harder, further, faster, or shrug shoves off.'),
         sec('❗', 'The bite', 'Little dips are nibbles: wait. When the bobber plunges and a ! appears, click before the ring runs out.', 'Click too early and you reel in for nothing.'),
-        sec('🟩', 'Reeling', 'Hold to lift the green bar, let go and it falls. Keep the fish inside: the meter on the right fills; outside it drains.', 'Never let it out for a Perfect catch. Grab treasure chests with the bar too.'),
+        sec('🟩', 'Reeling', 'Hold to lift the green bar, let go and it falls. Keep the fish inside: the meter on the right fills; outside it drains.', 'Every species moves its own way (Darter, Sinker, Runner, Wave…): the name shows under the reel.'),
         sec('📋', 'Missions', 'Every hole has one (Small Fry, Trophy Hunt, Most Wanted…). Matching fish score its multiplier; hit the goal for ×1.5 on the whole hole.', 'Gear that suits it is marked ✓ when you gear up.'),
-        sec('🛒', 'The bait shop', 'Every point you catch is also a dollar this run. Buy gear (yours forever), dash ornaments, and run charms. Rerolls cost more each time.', 'Spending never lowers your score. Cash doesn’t carry over: spend it on the way home.'),
+        sec('🛒', 'The bait shop', 'Every point you catch is also a dollar this run. Buy gear (yours forever), dash ornaments, and run charms. Collecting all the gear takes a long while.', 'Rerolls are dear: $1,500, doubling each time. Cash doesn’t carry over: spend it on the way home.'),
         sec('🧸', 'Dash ornaments', 'Rolled relics with 1–3 perks. Strong rolls always bring a ▼ curse along. Three ride on your dash and apply at every hole.', 'Plastic, Brass, Silver, Gold, and Pearl (Hers).'),
         sec('👑', 'Marlene', 'She can show up at any hole: watch for a golden ripple. Cast into it for a chance she bites.', 'She is the hardest fish there is. Bring your biggest catch bar.'),
       ),
-      h('div.small.dim', 'Esc or ⏸ pauses a solo run. Right-click (or Esc) takes back a cast you’re charging or waiting on.'),
+      h('div.small.dim', 'Esc or ⏸ pauses a solo run. Right-click (or Esc) takes back a cast you’re charging or waiting on. A/D walk, E shoves (with friends).'),
     ),
     { wide: true },
   );
@@ -254,6 +257,7 @@ function fishLog(): void {
         e ? h('div', f.blurb) : h('div.dim', 'Not caught yet.'),
         h('div.small.dim', `${f.biomes.length > 4 ? 'Every water' : f.biomes.join(', ')}${f.times ? ` · ${f.times.join(', ')}` : ''}`),
         h('div.small.dim', `${f.cm[0]}–${f.cm[1]} cm · base ${f.pts} pts · difficulty ${f.diff}`),
+        h('div.small', { style: 'font-weight:700' }, f.id === 'marlene' ? 'Bites in her golden ripple' : f.dist ? `Bites ${f.dist} m or more out` : 'Bites right by the shore', ` · ${MOVES[f.beh].name}: ${MOVES[f.beh].text}`),
         e ? h('div', h('b', `${e.n} caught`), ` · best ${Math.round(e.best)} cm (${e.bestKg} kg)`) : '',
       ),
     );

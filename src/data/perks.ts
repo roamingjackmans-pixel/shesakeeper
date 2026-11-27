@@ -74,6 +74,12 @@ export const GOOD_PERKS: PerkDef[] = [
   P('freeReroll', 1, 1, 'Shuffling', { int: true, potent: true, w: 0.4, group: 'shop' }),
   P('sellBonus', 0.15, 0.6, 'Haggling', { w: 0.7, group: 'shop' }),
   P('startCash', 50, 250, 'Rich', { int: true, group: 'shop' }),
+  // for fishing with friends: messing with the competition, or shrugging it off
+  P('shove', 0.1, 0.5, 'Pushy', { w: 0.6, group: 'shove' }),
+  P('shoveReach', 0.15, 0.6, 'Rangy', { w: 0.5, group: 'shove' }),
+  P('shoveCd', 0.1, 0.5, 'Restless', { w: 0.5, group: 'shove' }),
+  P('shoveSpook', 0.15, 0.6, 'Sneaky', { w: 0.5, group: 'shove' }),
+  P('steady', 0.1, 0.5, 'Sturdy', { w: 0.6, group: 'steady' }),
   P('attract:catfish', 0.2, 0.6, 'Smelly', { w: 0.5 }),
   P('attract:trout', 0.2, 0.6, 'Feathered', { w: 0.5 }),
   P('attract:predator', 0.2, 0.6, 'Bloody', { w: 0.5 }),
@@ -107,6 +113,7 @@ export const CURSES: PerkDef[] = [
   P('rerollDiscount', -0.2, -0.6, '', { group: 'shop' }),
   P('sellBonus', -0.2, -0.5, '', { group: 'shop', w: 0.6 }),
   P('points', -0.03, -0.08, '', { group: 'points', w: 0.5 }),
+  P('steady', -0.1, -0.4, '', { group: 'steady', w: 0.6 }),
 ];
 
 export const GOOD_BY_KEY: Record<string, PerkDef> = Object.fromEntries(GOOD_PERKS.map((p) => [p.k, p]));

@@ -82,7 +82,7 @@ const MAKERS: { id: string; w: number; make: Maker }[] = [
       const tag = s.tags.find((t) => TAG_GEAR[t]);
       const sh = share(c, (x) => x.id === s.id);
       const goal = g(c, sh >= 0.2 ? 3 : sh >= 0.1 ? 2 : 1);
-      return { id: 'wanted', title: 'Most Wanted', text: `${s.name} scores ×5`, goalText: `Catch ${goal} ${s.name}`, rule: { k: 'species', id: s.id }, mult: 5, goal, hint: tag ? `${s.name} counts as ${TAG_NAMES[tag]}: bait and lures for them help.` : `Keep casting. ${s.name} is out there.`, fits: tag ? TAG_GEAR[tag]! : [] };
+      return { id: 'wanted', title: 'Most Wanted', text: `${s.name} scores ×5`, goalText: `Catch ${goal} ${s.name}`, rule: { k: 'species', id: s.id }, mult: 5, goal, hint: `${s.dist ? `${s.name} only bites ${s.dist} m or more out: bring the reach. ` : ''}${tag ? `It counts as ${TAG_NAMES[tag]}: bait and lures for them help.` : `Keep casting. ${s.name} is out there.`}`, fits: tag ? TAG_GEAR[tag]! : [] };
     },
   },
   {

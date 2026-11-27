@@ -1006,15 +1006,27 @@ export class LakeScene implements Scene {
       c.arc(p.x, p.y, Math.max(1.5, 3.2 * p.s), 0, Math.PI * 2);
       c.fill();
     }
-    // the end of your reach
+    // distance marks every 10 m out from the shore (bigger fish only bite further out), and the end of your reach
+    c.font = '700 14px Fredoka, sans-serif';
+    c.textAlign = 'left';
+    c.lineWidth = 3;
+    c.strokeStyle = 'rgba(20,30,50,0.7)';
+    for (let m = 10; m < g.reach * Math.cos(g.aim) - 2; m += 10) {
+      const d = m / Math.max(0.2, Math.cos(g.aim));
+      const p = project(g.x + Math.sin(g.aim) * d, m);
+      c.fillStyle = 'rgba(255,255,255,0.75)';
+      c.fillRect(p.x - 7 * p.s, p.y - 1, 14 * p.s, 2);
+      c.strokeText(`${m} m`, p.x + 10, p.y + 5);
+      c.fillText(`${m} m`, p.x + 10, p.y + 5);
+    }
     const ex = g.x + Math.sin(g.aim) * g.reach;
     const ez = Math.cos(g.aim) * g.reach;
     const ep = project(ex, ez);
-    c.strokeStyle = 'rgba(255,255,255,0.5)';
+    c.strokeStyle = 'rgba(255,255,255,0.7)';
     c.lineWidth = 2;
     c.beginPath();
-    c.moveTo(ep.x - 10 * ep.s, ep.y);
-    c.lineTo(ep.x + 10 * ep.s, ep.y);
+    c.moveTo(ep.x - 12 * ep.s, ep.y);
+    c.lineTo(ep.x + 12 * ep.s, ep.y);
     c.stroke();
     if (g.charging) {
       const p = project(g.landX, g.landZ);
@@ -1029,6 +1041,15 @@ export class LakeScene implements Scene {
       c.moveTo(p.x, p.y - flatR(g.landZ, 1.1) - 8);
       c.lineTo(p.x, p.y - flatR(g.landZ, 1.1) - 18 - Math.sin(now * 12) * 3);
       c.stroke();
+      // how far out it would land
+      const label = `${Math.round(g.landZ)} m`;
+      c.font = '900 20px "Lilita One", sans-serif';
+      c.textAlign = 'center';
+      c.lineWidth = 5;
+      c.strokeStyle = 'rgba(20,30,50,0.85)';
+      c.strokeText(label, p.x, p.y - flatR(g.landZ, 1.1) - 26);
+      c.fillStyle = col;
+      c.fillText(label, p.x, p.y - flatR(g.landZ, 1.1) - 26);
     }
     void stand;
   }
@@ -1076,7 +1097,7 @@ export class LakeScene implements Scene {
       c.save();
       c.translate(st.x, st.y);
       const holding = v.phase === 'landing' && a.pt >= ARC_TIME;
-      const tip = drawAngler(c, a.look, { pose: poseFor(v.phase), aim: v.aim, power: v.power, pt: a.pt, now, fy: v.fy, fish: holding ? v.fish : undefined, fishCm: a.shownCm });
+      const tip = drawAngler(c, a.look, { pose: poseFor(v.phase), aim: v.aim, power: v.power, pt: a.pt, now, fy: v.fy, fish: holding ? v.fish : undefined, fishCm: a.shownCm, walk: v.walk, push: v.push, jolt: v.jolt });
       c.restore();
       const tx = st.x + tip.tx;
       const ty = st.y + tip.ty;

@@ -2,6 +2,7 @@
 // bites, and the reel (catch bar, fish, treasure chest, catch meter) while reeling.
 import type { Angler } from '../core/angler';
 import { INK } from './fishart';
+import { MOVES } from '../data/fish';
 
 function frame(c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, fill = '#f6e6c0'): void {
   c.fillStyle = 'rgba(0,0,0,0.3)';
@@ -227,5 +228,16 @@ export function drawReel(c: CanvasRenderingContext2D, a: Angler, sx: number, now
     c.strokeText('PERFECT', x + w / 2, y - 10);
     c.fillStyle = '#7cff9a';
     c.fillText('PERFECT', x + w / 2, y - 10);
+  }
+  // how this fish moves (Darter, Sinker, Runner…), under the panel
+  const move = a.fish ? MOVES[a.fish.sp.beh] : null;
+  if (move) {
+    c.font = '900 18px "Lilita One", sans-serif';
+    c.textAlign = 'center';
+    c.lineWidth = 4;
+    c.strokeStyle = INK;
+    c.strokeText(move.name.toUpperCase(), x + w / 2, y + h + 26);
+    c.fillStyle = '#ffffff';
+    c.fillText(move.name.toUpperCase(), x + w / 2, y + h + 26);
   }
 }

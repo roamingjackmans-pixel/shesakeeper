@@ -38,6 +38,10 @@ export interface BarState {
   everLeft: boolean;
   t: number;
   lunge: number;
+  /** movement state for the patterned kinds: a timer, a mode (resting/running, up/down), a wave phase */
+  mt: number;
+  mode: number;
+  ph: number;
   treasure: Treasure | null;
   done: 'caught' | 'escaped' | null;
 }
@@ -59,6 +63,9 @@ export function newBar(rng: Rng, p: BarParams): BarState {
     everLeft: false,
     t: 0,
     lunge: 2 + rng.next() * 2,
+    mt: rng.range(0.6, 1.4),
+    mode: 0,
+    ph: rng.range(0, Math.PI * 2),
     treasure: p.treasure ? { pos: rng.range(0.1, 0.9), prog: 0, appearAt: rng.range(0.8, 2.4), shown: false, got: false } : null,
     done: null,
   };
@@ -81,30 +88,96 @@ export function stepBar(s: BarState, p: BarParams, rng: Rng, held: boolean, dt: 
     s.barPos = 0;
     if (s.barVel < 0) s.barVel = Math.abs(s.barVel) > 0.08 ? -s.barVel * p.bounce : 0;
   }
-  // ---- the fish
+  // ---- the fish: every species moves its own way (src/data/fish.ts MOVES)
   const d = clamp(p.diff, 0, 120) / 100;
-  let rate = 0.4 + d * 3.4;
-  let spread = 0.12 + 0.42 * d;
-  let bias = 0;
-  if (p.beh === 'smooth') {
-    rate *= 0.65;
-    spread *= 0.7;
-  } else if (p.beh === 'sinker') bias = -0.12;
-  else if (p.beh === 'floater') bias = 0.12;
-  if (rng.chance(rate * dt)) s.target = clamp(s.fishPos + rng.gauss() * spread + bias * rng.next(), 0, 1);
-  if (p.beh === 'sinker' && s.fishPos > 0.85) s.target = Math.min(s.target, 0.6);
-  if (p.beh === 'floater' && s.fishPos < 0.15) s.target = Math.max(s.target, 0.4);
-  if ((p.beh === 'dart' || p.beh === 'legend') && rng.chance((0.3 + d * 1.4) * dt)) s.fishVel += (rng.chance(0.5) ? 1 : -1) * rng.range(0.8, 2) * d;
-  if (p.beh === 'legend') {
-    s.lunge -= dt;
-    if (s.lunge <= 0) {
-      s.lunge = 2.2 + rng.next() * 1.8;
-      s.target = s.fishPos > 0.5 ? rng.range(0, 0.25) : rng.range(0.75, 1);
-      s.fishVel += (s.target > s.fishPos ? 1 : -1) * 1.2;
+  let k = 12 + d * 22;
+  let c = 4 + d * 1.4;
+  switch (p.beh) {
+    case 'wave': {
+      // long even waves the length of the bar
+      s.ph += dt * (0.8 + 1.5 * d);
+      s.target = clamp(0.5 + (0.16 + 0.17 * d) * Math.sin(s.ph) + 0.04 * Math.sin(s.ph * 2.7), 0, 1);
+      k *= 1.4;
+      break;
+    }
+    case 'burst': {
+      // rests, then bolts to the far end
+      s.mt -= dt;
+      if (s.mode === 0) {
+        if (rng.chance(1.5 * dt)) s.target = clamp(s.fishPos + rng.range(-0.04, 0.04), 0, 1);
+        if (s.mt <= 0) {
+          s.mode = 1;
+          const jump = rng.range(0.32, 0.5 + 0.15 * d);
+          s.target = clamp(s.fishPos > 0.5 ? s.fishPos - jump : s.fishPos + jump, 0.02, 0.98);
+        }
+      } else {
+        k *= 1.5 + 0.4 * d;
+        if (Math.abs(s.fishPos - s.target) < 0.05) {
+          s.mode = 0;
+          s.mt = rng.range(1.2, 2.5) * (1.3 - 0.5 * d);
+        }
+      }
+      break;
+    }
+    case 'jumpy': {
+      // quick little hops, mostly flipping direction
+      s.mt -= dt;
+      if (s.mt <= 0) {
+        s.mt = rng.range(0.32, 0.62) * (1.25 - 0.45 * d);
+        s.mode = rng.chance(0.75) ? 1 - s.mode : s.mode;
+        const hop = rng.range(0.06, 0.16) * (1 + 0.7 * d);
+        s.target = clamp(s.fishPos + (s.mode ? hop : -hop), 0.02, 0.98);
+      }
+      k *= 1.8;
+      c *= 1.3;
+      break;
+    }
+    case 'heavy': {
+      // slow, but always pulling for the bottom, with hard tugs
+      if (rng.chance((0.4 + d * 2.4) * dt)) s.target = rng.range(0, 0.4 + 0.3 * (1 - d));
+      if (rng.chance((0.5 + d * 1.4) * dt)) s.fishVel -= rng.range(0.8, 1.8) * d;
+      k *= 0.8;
+      break;
+    }
+    case 'rush': {
+      // end to end, a breather, back again
+      // mt: counting down a breather (> -50), or -99 while running (the breather starts when it arrives)
+      s.mt -= dt;
+      if (Math.abs(s.fishPos - s.target) < 0.06) {
+        if (s.mt <= -50) s.mt = rng.range(1.0, 2.1) * (1.3 - 0.5 * d);
+        else if (s.mt <= 0) {
+          s.mode = 1 - s.mode;
+          s.target = s.mode ? rng.range(0.72, 0.95) : rng.range(0.05, 0.28);
+          s.mt = -99;
+        }
+      }
+      k *= 0.75 + 0.3 * d;
+      break;
+    }
+    default: {
+      // Stardew's kinds: mixed, dart, smooth, sinker, floater (and Hers, built on dart)
+      let rate = 0.4 + d * 3.4;
+      let spread = 0.12 + 0.42 * d;
+      let bias = 0;
+      if (p.beh === 'smooth') {
+        rate *= 0.65;
+        spread *= 0.7;
+      } else if (p.beh === 'sinker') bias = -0.12;
+      else if (p.beh === 'floater') bias = 0.12;
+      if (rng.chance(rate * dt)) s.target = clamp(s.fishPos + rng.gauss() * spread + bias * rng.next(), 0, 1);
+      if (p.beh === 'sinker' && s.fishPos > 0.85) s.target = Math.min(s.target, 0.6);
+      if (p.beh === 'floater' && s.fishPos < 0.15) s.target = Math.max(s.target, 0.4);
+      if ((p.beh === 'dart' || p.beh === 'legend') && rng.chance((0.3 + d * 1.4) * dt)) s.fishVel += (rng.chance(0.5) ? 1 : -1) * rng.range(0.8, 2) * d;
+      if (p.beh === 'legend') {
+        s.lunge -= dt;
+        if (s.lunge <= 0) {
+          s.lunge = 2.2 + rng.next() * 1.8;
+          s.target = s.fishPos > 0.5 ? rng.range(0, 0.25) : rng.range(0.75, 1);
+          s.fishVel += (s.target > s.fishPos ? 1 : -1) * 1.2;
+        }
+      }
     }
   }
-  const k = 12 + d * 22;
-  const c = 4 + d * 1.4;
   s.fishVel += ((s.target - s.fishPos) * k - s.fishVel * c) * dt;
   s.fishPos += s.fishVel * dt * p.fishSpeed;
   if (s.fishPos < 0) {

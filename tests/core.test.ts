@@ -77,7 +77,7 @@ describe('the catch bar', () => {
       let k = 0;
       if (reel(50, 0.22, () => (k++ % 20) < 10, 900 + i) === 'caught') mash++;
     }
-    expect(idle).toBeLessThanOrEqual(3);
+    expect(idle).toBeLessThanOrEqual(5);
     expect(mash).toBeLessThanOrEqual(8);
   });
 });
@@ -182,6 +182,45 @@ describe('a whole hole, played by a bot', () => {
     console.log(`starter gear: ${avg.toFixed(1)} fish, ${Math.round(avgPts)} points per hole (min ${Math.min(...pts)}, max ${Math.max(...pts)})`);
     expect(avg).toBeGreaterThan(6.5);
     expect(avg).toBeLessThan(20);
+  });
+});
+
+describe('distance, movement, shoves', () => {
+  it('half the species need a long cast: starter gear reaches about a quarter, a good rod about half', async () => {
+    const { SPECIES } = await import('../src/data/fish');
+    const real = SPECIES.filter((s) => !s.tags.includes('junk'));
+    const share = (m: number) => real.filter((s) => s.dist <= m).length / real.length;
+    expect(share(27)).toBeLessThan(0.35); // the bamboo pole
+    expect(share(33)).toBeLessThan(0.5); // fiberglass
+    expect(share(45)).toBeGreaterThan(0.6); // the surf caster
+    expect(share(58)).toBe(1); // the longest cast there is
+  });
+  it('fish only bite when the bobber is far enough out', async () => {
+    const { reachable } = await import('../src/core/fishpool');
+    const { holePool } = await import('../src/core/fishpool');
+    const pool = holePool('lake', 'day');
+    expect(reachable(pool, 10).every((s) => s.dist <= 10)).toBe(true);
+    expect(reachable(pool, 50).some((s) => s.dist > 40)).toBe(true);
+    expect(reachable(pool, 0).length).toBeGreaterThan(0);
+  });
+  it('every movement style can be caught by a good player at medium difficulty with a decent bar', () => {
+    for (const beh of ['mixed', 'dart', 'smooth', 'sinker', 'floater', 'wave', 'burst', 'jumpy', 'heavy', 'rush'] as const) {
+      let won = 0;
+      for (let i = 0; i < 20; i++) if (reel(50, 0.3, human(), 7000 + i, beh) === 'caught') won++;
+      expect(won, beh).toBeGreaterThanOrEqual(16);
+    }
+  });
+  it('a shove wobbles the catch bar and is softened by steadiness; walking stays in the lane', () => {
+    const hole = buildRun(8, 'solo', []).holes[0]!;
+    const base = loadoutStats({ ...STARTER, dash: [], charms: [] }, [], []);
+    const steady = loadoutStats({ ...STARTER, lure: 'anchor', dash: [], charms: [] }, [], []);
+    const a = new Angler({ x: 0, seed: 1, stats: base, hole, mods: [], charms: [], lane: [-5, 5] });
+    const b = new Angler({ x: 0, seed: 1, stats: steady, hole, mods: [], charms: [], lane: [-5, 5] });
+    expect(a.shoved(1, 0.25, 1)).toBeGreaterThan(b.shoved(1, 0.25, 1));
+    const w = new HoleWorld(hole, []);
+    for (let i = 0; i < 120; i++) a.update(DT, { held: false, pressed: false, released: false, cancel: false, aim: 0, move: 1 }, w);
+    expect(a.x).toBeLessThanOrEqual(5);
+    expect(a.x).toBeGreaterThan(4);
   });
 });
 

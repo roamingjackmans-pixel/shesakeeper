@@ -20,6 +20,8 @@ export interface AnglerInput {
   cancel: boolean;
   /** radians: 0 straight out, negative left */
   aim: number;
+  /** -1 walk left, 1 walk right (A/D or the arrow keys), 0 stand */
+  move?: number;
 }
 
 export type TreasureReward = { kind: 'cash'; amount: number } | { kind: 'charm'; seed: number } | { kind: 'ornament'; seed: number };
@@ -57,6 +59,10 @@ export interface AnglerView {
   prog: number;
   /** the bar's fish height 0..1, for the line wiggle */
   fy: number;
+  /** walking left (-1) or right (1), reeling from a shove (1), shoving someone left (-1) or right (1) */
+  walk?: number;
+  jolt?: number;
+  push?: number;
 }
 
 export const AIM_MAX = 1.05;
@@ -68,6 +74,8 @@ export interface AnglerOpts {
   hole: HoleSpec;
   mods: string[];
   charms: string[];
+  /** the stretch of shore this angler can walk (metres; co-op anglers each have their own) */
+  lane?: [number, number];
 }
 
 export class Angler {
@@ -111,9 +119,20 @@ export class Angler {
   private rng: Rng;
   private pool: Species[];
   private overT = 0;
+  readonly lane: [number, number];
+  /** walking this frame (for the drawing) */
+  walking = 0;
+  /** shoving someone (the lean): seconds left and which way */
+  pushT = 0;
+  pushDir = 0;
+  /** being shoved: seconds of wobble left, how hard, the extra slip */
+  jostleT = 0;
+  private jostleStr = 0;
+  private jostleSpook = 0;
 
   constructor(o: AnglerOpts) {
     this.x = o.x;
+    this.lane = o.lane ?? [o.x - 14, o.x + 14];
     this.bx = o.x;
     this.stats = o.stats;
     this.d = derived(o.stats);
@@ -161,6 +180,16 @@ export class Angler {
         return ev;
       }
     }
+    // walking along the shore for a better angle: only with nothing in the water
+    this.walking = 0;
+    const mv = inp.move ?? 0;
+    if (mv && (this.phase === 'ready' || this.phase === 'landing')) {
+      const nx = clamp(this.x + mv * BASE.walk * dt, this.lane[0], this.lane[1]);
+      this.walking = nx !== this.x ? mv : 0;
+      this.x = nx;
+    }
+    this.jostleT = Math.max(0, this.jostleT - dt);
+    this.pushT = Math.max(0, this.pushT - dt);
     switch (this.phase) {
       case 'ready':
         this.bx = this.x;
@@ -232,7 +261,13 @@ export class Angler {
         break;
       case 'reeling': {
         const bar = this.bar!;
-        const r = stepBar(bar, this.barParams!, this.rng, inp.held, dt);
+        let params = this.barParams!;
+        if (this.jostleT > 0) {
+          // shoved: the bar wobbles and the fish slips faster for a moment
+          bar.barVel += (this.rng.gauss() * 5 + Math.sin(this.pt * 22) * 3) * this.jostleStr * dt;
+          params = { ...params, drain: params.drain * (1 + this.jostleSpook) };
+        }
+        const r = stepBar(bar, params, this.rng, inp.held, dt);
         if (r === 'caught') this.caught(ev, world);
         else if (r === 'escaped') this.escaped(ev);
         break;
@@ -317,7 +352,7 @@ export class Angler {
     if (legend) sp = MARLENE;
     else {
       this.cast.legend = false;
-      sp = pickSpecies(rng, this.pool, this.stats, this.d, { weather: this.hole.weather, bubble: this.cast.bubble !== null, bullseye: this.cast.bullseye, far: this.cast.far });
+      sp = pickSpecies(rng, this.pool, this.stats, this.d, { weather: this.hole.weather, bubble: this.cast.bubble !== null, bullseye: this.cast.bullseye, far: this.cast.far, z: this.bz });
     }
     const cm = rollSize(rng, sp, this.d, this.cast.far, sp.id === 'marlene' ? 1 : (this.flags.sizeMul ?? 1));
     this.fish = { sp, cm };
@@ -424,6 +459,23 @@ export class Angler {
     } else this.go('reelin');
   }
 
+  /**
+   * Co-op: another angler shoved us. `str` is their shove strength, `spook` the extra slip, `dir` which way it
+   * pushes us. Our steadiness takes the edge off. Reeling: the catch bar wobbles; charging: the cast is knocked loose.
+   * Returns how hard it landed (0: it didn't).
+   */
+  shoved(str: number, spook: number, dir: number): number {
+    if (this.phase === 'done') return 0;
+    const hit = Math.max(0, str) * this.d.shoveTaken;
+    this.jostleT = BASE.shoveTime * Math.min(1.6, 0.6 + hit * 0.4);
+    this.jostleStr = hit;
+    this.jostleSpook = Math.max(0, spook) * this.d.shoveTaken;
+    this.x = clamp(this.x + Math.sign(dir || 1) * 1.4 * hit, this.lane[0], this.lane[1]);
+    if (this.phase === 'charging') this.go('ready');
+    if (this.phase === 'ready') this.bx = this.x;
+    return hit;
+  }
+
   /** co-op: someone else's claim on Her reached the host first, so she isn't on our line after all */
   forfeitLegend(): boolean {
     if (this.fish?.sp.id !== 'marlene' || (this.phase !== 'bite' && this.phase !== 'reeling')) return false;
@@ -447,6 +499,9 @@ export class Angler {
       fish: this.phase === 'reeling' ? (this.fish?.sp.id ?? '') : this.phase === 'landing' ? (this.shown?.id ?? '') : '',
       prog: this.bar ? Math.round(this.bar.progress * 100) / 100 : 0,
       fy: this.bar ? Math.round(this.bar.fishPos * 100) / 100 : 0.5,
+      walk: this.walking,
+      jolt: this.jostleT > 0 ? 1 : 0,
+      push: this.pushT > 0 ? this.pushDir : 0,
     };
   }
 }

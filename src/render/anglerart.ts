@@ -28,6 +28,10 @@ export interface PoseArgs {
   fishCm?: number;
   /** screen point the line pulls toward (for rod bend) */
   pull?: { x: number; y: number };
+  /** walking (a step cycle), shoving someone (-1 left / 1 right), wobbling from a shove */
+  walk?: number;
+  push?: number;
+  jolt?: number;
 }
 
 /** draws at the current transform's origin = between the feet, `s` = scale; returns the rod tip in local units */
@@ -40,23 +44,30 @@ export function drawAngler(c: CanvasRenderingContext2D, look: AnglerLook, p: Pos
   c.lineCap = 'round';
   c.strokeStyle = INK;
   c.lineWidth = 3;
-  const bob = Math.sin(p.now * 2) * 1.2;
+  // walking: legs take turns lifting; a shove leans the whole angler; being shoved wobbles them
+  const step = p.walk ? Math.sin(p.now * 14) : 0;
+  const bob = Math.sin(p.now * 2) * 1.2 - (p.walk ? Math.abs(step) * 2.5 : 0);
+  const tilt = (p.push ? p.push * 0.24 : 0) + (p.jolt ? Math.sin(p.now * 32) * 0.08 : 0);
   // shadow
   c.fillStyle = 'rgba(0,0,0,0.25)';
   c.beginPath();
   c.ellipse(0, 2, 34, 8, 0, 0, Math.PI * 2);
   c.fill();
+  c.save();
+  c.rotate(tilt);
   // legs + boots
+  const lL = Math.max(0, step) * 7;
+  const lR = Math.max(0, -step) * 7;
   c.fillStyle = '#3a4a6a';
   c.beginPath();
-  c.roundRect(-22, -58, 19, 54, 5);
-  c.roundRect(3, -58, 19, 54, 5);
+  c.roundRect(-22, -58, 19, 54 - lL, 5);
+  c.roundRect(3, -58, 19, 54 - lR, 5);
   c.fill();
   c.stroke();
   c.fillStyle = '#4a3020';
   c.beginPath();
-  c.roundRect(-24, -12, 22, 13, 4);
-  c.roundRect(2, -12, 22, 13, 4);
+  c.roundRect(-24, -12 - lL, 22, 13, 4);
+  c.roundRect(2, -12 - lR, 22, 13, 4);
   c.fill();
   c.stroke();
   // rod angle (from vertical, + leans right)
@@ -94,8 +105,29 @@ export function drawAngler(c: CanvasRenderingContext2D, look: AnglerLook, p: Pos
     default:
       th = 0.22 + Math.sin(p.now * 1.1) * 0.03;
   }
-  const handX = 24;
-  const handY = -96 + bob;
+  // Seen from behind, the hands are out in front of the body, out of sight: the rod starts there, so its butt is
+  // hidden by the body and only the part rising past the shoulder shows. Pulled back to cast, it comes over the
+  // right shoulder toward us instead.
+  const charging = p.pose === 'charge';
+  const rx = charging ? 16 : 10;
+  const ry = charging ? -118 + bob : -92 + bob;
+  const tx = rx + Math.sin(th) * len;
+  const ty = ry - Math.cos(th) * len;
+  const mx = (rx + tx) / 2 + (p.pull ? Math.sign(p.pull.x - tx) * bend * 26 : bend * 20);
+  const my = (ry + ty) / 2 + bend * 30;
+  const drawRod = () => {
+    c.strokeStyle = INK;
+    c.lineWidth = 6;
+    c.beginPath();
+    c.moveTo(rx, ry);
+    c.quadraticCurveTo(mx, my, tx, ty);
+    c.stroke();
+    c.strokeStyle = '#d8b86a';
+    c.lineWidth = 3;
+    c.stroke();
+    c.lineWidth = 3;
+  };
+  if (!charging) drawRod();
   // body: vest over a jacket
   c.fillStyle = jacket;
   c.beginPath();
@@ -120,10 +152,8 @@ export function drawAngler(c: CanvasRenderingContext2D, look: AnglerLook, p: Pos
   c.fill();
   c.stroke();
   c.lineWidth = 3;
-  // arms
-  c.strokeStyle = INK;
-  c.fillStyle = jacket;
-  const arm = (x0: number, y0: number, x1: number, y1: number) => {
+  // arms: sleeves only (the hands are in front, out of sight)
+  const sleeve = (x0: number, y0: number, x1: number, y1: number) => {
     c.lineWidth = 15;
     c.strokeStyle = INK;
     c.beginPath();
@@ -135,76 +165,65 @@ export function drawAngler(c: CanvasRenderingContext2D, look: AnglerLook, p: Pos
     c.stroke();
     c.lineWidth = 3;
     c.strokeStyle = INK;
-    c.fillStyle = skin;
-    c.beginPath();
-    c.arc(x1, y1, 6, 0, Math.PI * 2);
-    c.fill();
-    c.stroke();
   };
   if (armsUp) {
-    arm(-24, -116 + bob, -30, -170);
-    arm(24, -116 + bob, 30, -170);
+    // holding the catch up over the head: forearms up, the fish in front of the hands
+    sleeve(-24, -116 + bob, -32, -150);
+    sleeve(-32, -150, -26, -176);
+    sleeve(24, -116 + bob, 32, -150);
+    sleeve(32, -150, 26, -176);
+  } else if (charging) {
+    sleeve(-24, -116 + bob, -30, -86 + bob);
+    sleeve(24, -116 + bob, 30, -128 + bob);
   } else {
-    arm(-24, -116 + bob, -8, handY + 6);
-    arm(24, -116 + bob, handX, handY);
+    // elbows out a little, forearms reaching forward out of sight
+    sleeve(-24, -116 + bob, -31, -88 + bob);
+    sleeve(24, -116 + bob, 31, -88 + bob);
   }
-  // head
+  // the back of the head: a bit of neck, the ears, and hair (no face: the angler looks out over the water)
   c.fillStyle = skin;
   c.beginPath();
-  c.arc(0, -138 + bob, 21, 0, Math.PI * 2);
+  c.roundRect(-8, -124 + bob, 16, 10, 3);
   c.fill();
   c.stroke();
-  // ears
   c.beginPath();
   c.arc(-20, -136 + bob, 5, 0, Math.PI * 2);
   c.arc(20, -136 + bob, 5, 0, Math.PI * 2);
   c.fill();
   c.stroke();
-  // hair (back of the head)
   c.fillStyle = hair;
   c.beginPath();
-  c.arc(0, -138 + bob, 20, -0.15, Math.PI + 0.15);
-  c.quadraticCurveTo(-12, -112 + bob, 0, -116 + bob);
-  c.quadraticCurveTo(12, -112 + bob, 20, -136 + bob);
+  c.arc(0, -138 + bob, 21, 0, Math.PI * 2);
   c.fill();
-  c.lineWidth = 2;
   c.stroke();
+  // a few strands
+  c.strokeStyle = shade(hair, -0.3);
+  c.lineWidth = 2;
+  c.beginPath();
+  c.moveTo(-8, -150 + bob);
+  c.quadraticCurveTo(-10, -136 + bob, -6, -122 + bob);
+  c.moveTo(7, -150 + bob);
+  c.quadraticCurveTo(10, -136 + bob, 5, -122 + bob);
+  c.stroke();
+  c.strokeStyle = INK;
   c.lineWidth = 3;
   drawHat(c, look.hat % HATS.length, hatC, -150 + bob);
-  // the rod
-  const rx = handX;
-  const ry = handY;
-  const tx = rx + Math.sin(th) * len;
-  const ty = ry - Math.cos(th) * len;
-  const mx = (rx + tx) / 2 + (p.pull ? Math.sign(p.pull.x - tx) * bend * 26 : bend * 20);
-  const my = (ry + ty) / 2 + bend * 30;
-  c.strokeStyle = INK;
-  c.lineWidth = 6;
-  c.beginPath();
-  c.moveTo(rx, ry);
-  c.quadraticCurveTo(mx, my, tx, ty);
-  c.stroke();
-  c.strokeStyle = '#d8b86a';
-  c.lineWidth = 3;
-  c.stroke();
-  // reel
-  c.fillStyle = '#9aa0a8';
-  c.lineWidth = 2;
-  c.strokeStyle = INK;
-  c.beginPath();
-  c.arc(rx + Math.sin(th) * 22 + 5, ry - Math.cos(th) * 22, 6, 0, Math.PI * 2);
-  c.fill();
-  c.stroke();
+  // pulled back over the shoulder, the rod is in front of everything
+  if (charging) drawRod();
   if (armsUp && p.fish && FISH[p.fish]) {
     const sp = FISH[p.fish]!;
-    const L = Math.max(46, Math.min(240, (p.fishCm ?? 30) * 1.4));
+    const L = Math.max(60, Math.min(240, (p.fishCm ?? 30) * 1.4));
     c.save();
-    c.translate(0, -178 - Math.min(40, L * 0.1));
+    c.translate(0, -180 - Math.min(30, L * 0.08));
     c.rotate(Math.sin(p.now * 9) * 0.08);
     drawFish(c, sp, L, { wag: Math.sin(p.now * 14), glow: sp.id === 'marlene' });
     c.restore();
   }
-  return { tx, ty };
+  c.restore();
+  // the rod tip, turned with the lean
+  const ct = Math.cos(tilt);
+  const st = Math.sin(tilt);
+  return { tx: tx * ct - ty * st, ty: tx * st + ty * ct };
 }
 
 function drawHat(c: CanvasRenderingContext2D, hat: number, col: string, y: number): void {

@@ -9,7 +9,7 @@ import { HoleWorld } from '../core/world';
 import { CHARM, CHARM_SLOTS, MOD } from '../data/charms';
 import { GEAR, KIND_NAME, type GearKind } from '../data/gear';
 import { BIOMES, TIME_ICON, TIME_NAMES, WEATHER_ICON, WEATHER_NAMES } from '../data/spots';
-import { describeBonus } from '../core/stats';
+import { derived, describeBonus } from '../core/stats';
 import { onTick, setScene } from '../render/canvas';
 import { fishPic, gearPic, ornPic } from '../render/pics';
 import { LakeScene } from '../render/lake';
@@ -68,6 +68,8 @@ export function loadoutScreen(run: Run): void {
     };
     const render = () => {
       const stats = run.stats();
+      // how far out you can cast with this gear (a perfect cast goes a little further)
+      const reach = derived(stats).castMax * 1.04;
       const dash = lo.dash.map((id) => ornamentById(p, id));
       const me = run.myPlayer();
       const fitsCount = [lo.rod, lo.lure, lo.bait].filter((id) => mission.fits.includes(id)).length;
@@ -86,8 +88,24 @@ export function loadoutScreen(run: Run): void {
           h('div.row.wrap', { style: 'gap:6px' }, h('span.chip', `${TIME_ICON[hole.time]} ${TIME_NAMES[hole.time]}`), h('span.chip', `${WEATHER_ICON[hole.weather]} ${WEATHER_NAMES[hole.weather]}`), h('span.chip', `⏱ ${+(hole.seconds / 60).toFixed(1)} min`)),
           h('div.card', { style: 'background:#fff7e0' }, h('div.display', { style: 'font-size:28px;color:#d8642a' }, mission.title), h('div', { style: 'font-weight:700;font-size:18px' }, mission.text), h('div', `Goal: ${mission.goalText} → the whole hole scores ×1.5`), h('div.small.dim', { style: 'margin-top:4px' }, `💡 ${mission.hint}`)),
           run.st.cfg.mods.length ? h('div.col', { style: 'gap:4px' }, ...run.st.cfg.mods.map((m) => h('div.small', h('b', `${MOD[m]!.glyph} ${MOD[m]!.name}: `), MOD[m]!.text))) : '',
-          h('b', 'Living here'),
-          h('div.row.wrap', { style: 'gap:4px' }, ...pool.map((s) => fishPic(s.id, 76, 38, !p.log[s.id], { title: p.log[s.id] ? `${s.name} (${s.cm[0]}–${s.cm[1]} cm)` : 'Not caught yet', style: 'background:rgba(255,255,255,0.6);border-radius:8px' }))),
+          h('div.row', h('b.grow', 'Living here'), h('span.small.dim', `your reach: ${Math.round(reach)} m`)),
+          h(
+            'div.row.wrap',
+            { style: 'gap:4px' },
+            ...[...pool]
+              .sort((a, b) => a.dist - b.dist)
+              .map((s) => {
+                // the fish further out than you can cast are faded: they can't bite with this rod
+                const ok = s.dist <= reach;
+                const name = p.log[s.id] ? s.name : 'Not caught yet';
+                return h(
+                  'div.col',
+                  { style: `gap:0;align-items:center;opacity:${ok ? 1 : 0.38}`, title: ok ? `${name}: bites ${s.dist ? `${s.dist} m+ out` : 'near the shore'}` : `${name}: needs a ${s.dist} m cast; you reach ${Math.round(reach)} m` },
+                  fishPic(s.id, 70, 35, !p.log[s.id], { style: 'background:rgba(255,255,255,0.6);border-radius:8px' }),
+                  h('span', { style: `font-size:12px;font-weight:800;color:${ok ? '#2a7a3a' : '#a8322d'}` }, s.dist ? `${s.dist} m` : 'shore'),
+                );
+              }),
+          ),
         ),
         // gear
         h(

@@ -14,6 +14,16 @@ export interface BiteCtx {
   bullseye: boolean;
   /** 0..1: how far out the bobber is, of the furthest anyone can cast */
   far: number;
+  /** metres out from the shore: a fish only bites when the bobber is at least its `dist` out */
+  z: number;
+}
+
+/** the fish that can bite this far out (the shore fish always can: nobody gets nothing) */
+export function reachable(pool: Species[], z: number): Species[] {
+  const ok = pool.filter((s) => s.dist <= z);
+  if (ok.length) return ok;
+  const nearest = Math.min(...pool.map((s) => s.dist));
+  return pool.filter((s) => s.dist <= nearest);
 }
 
 export function speciesWeight(s: Species, st: Stats, d: Derived, c: BiteCtx): number {
@@ -31,7 +41,7 @@ export function speciesWeight(s: Species, st: Stats, d: Derived, c: BiteCtx): nu
 }
 
 export function pickSpecies(rng: Rng, pool: Species[], st: Stats, d: Derived, c: BiteCtx): Species {
-  return rng.weighted(pool, (s) => speciesWeight(s, st, d, c));
+  return rng.weighted(reachable(pool, c.z), (s) => speciesWeight(s, st, d, c));
 }
 
 /** a length in cm; gear can push it past the species' usual maximum (a monster!) */
