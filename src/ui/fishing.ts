@@ -65,6 +65,8 @@ export interface FishingOpts {
   onQuit?: () => void;
   /** co-op: we shoved another angler */
   onShove?: (to: string, s: { str: number; spook: number; dir: number }) => void;
+  /** the practice pond: no clock, mission, score or tips (the tutorial coaches instead) */
+  tutorial?: boolean;
 }
 
 const TIPS: Record<string, string> = {
@@ -133,8 +135,10 @@ export class FishingSession {
     audio.music(night ? 'night' : 'fish');
     audio.ambience({ water: true, birds: o.spec.time === 'day' || o.spec.time === 'dawn', crickets: night, rain: o.spec.weather === 'rain' || o.spec.weather === 'storm', wind: o.spec.weather === 'snow' || !!this.world.flags.wind });
     audio.sfx('whistle');
-    this.banner(`${o.spec.name}`, `${o.spec.mission.title}: ${o.spec.mission.text}`, 2600);
-    this.tip('aim');
+    if (!o.tutorial) {
+      this.banner(`${o.spec.name}`, `${o.spec.mission.title}: ${o.spec.mission.text}`, 2600);
+      this.tip('aim');
+    }
   }
 
   dispose(): void {
@@ -542,10 +546,11 @@ export class FishingSession {
       { style: 'position:absolute;inset:0' },
       h(
         'div.hud-top',
-        h('div.hud-box', h('div.hud-label', `${BIOMES[s.biome].name} · ${TIME_ICON[s.time]} ${TIME_NAMES[s.time]} · ${WEATHER_ICON[s.weather]} ${WEATHER_NAMES[s.weather]}`), h('div.row', { style: 'gap:10px' }, this.els.clock, h('div.col', { style: 'gap:0' }, h('b', s.name), h('span.small.dim', `Hole ${s.idx + 1} of ${this.o.holes}`)))),
-        this.els.mission,
+        // the tutorial has no clock, mission or score: just the coach's card (ui/tutorial.ts)
+        this.o.tutorial ? '' : h('div.hud-box', h('div.hud-label', `${BIOMES[s.biome].name} · ${TIME_ICON[s.time]} ${TIME_NAMES[s.time]} · ${WEATHER_ICON[s.weather]} ${WEATHER_NAMES[s.weather]}`), h('div.row', { style: 'gap:10px' }, this.els.clock, h('div.col', { style: 'gap:0' }, h('b', s.name), h('span.small.dim', `Hole ${s.idx + 1} of ${this.o.holes}`)))),
+        this.o.tutorial ? '' : this.els.mission,
         h('div.grow'),
-        h('div.col', { style: 'gap:8px;align-items:flex-end' }, h('div.row', { style: 'gap:8px;align-items:flex-start' }, h('div.hud-box', { style: 'text-align:right' }, h('div.hud-label', 'Score'), this.els.score, h('div.row', { style: 'justify-content:flex-end;gap:10px' }, this.els.streak, this.els.cash)), h('button.tiny', { style: 'pointer-events:auto;font-size:20px;padding:4px 12px', title: 'Menu (Esc)', 'aria-label': 'Menu', onclick: () => this.pauseMenu() }, '⏸')), this.o.board ? h('div.hud-box', this.els.board) : ''),
+        h('div.col', { style: 'gap:8px;align-items:flex-end' }, h('div.row', { style: 'gap:8px;align-items:flex-start' }, this.o.tutorial ? '' : h('div.hud-box', { style: 'text-align:right' }, h('div.hud-label', 'Score'), this.els.score, h('div.row', { style: 'justify-content:flex-end;gap:10px' }, this.els.streak, this.els.cash)), h('button.tiny', { style: 'pointer-events:auto;font-size:20px;padding:4px 12px', title: 'Menu (Esc)', 'aria-label': 'Menu', onclick: () => this.pauseMenu() }, '⏸')), this.o.board ? h('div.hud-box', this.els.board) : ''),
       ),
       charms,
       mods,
@@ -634,6 +639,7 @@ export class FishingSession {
   // ------------------------------------------------------------------ tips
 
   private tip(id: keyof typeof TIPS, when?: () => boolean): void {
+    if (this.o.tutorial) return;
     const p = session.profile;
     if (!p.settings.hints || p.tips.includes(id) || this.hint) return;
     if (when && !when()) return;

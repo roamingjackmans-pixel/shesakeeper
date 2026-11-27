@@ -18,6 +18,7 @@ import { friendsModal } from './friends';
 import { coopHome, listenInvites } from './lobby';
 import { forgetRun, resumeSolo, savedRun, startDaily, startSolo } from './runner';
 import { warmUp } from './warm';
+import { gearGuide, startTutorial, tutorialSeen } from './tutorial';
 import { gearCard, money, ornCard, perkLines, pts, statSummary, tierBand } from './widgets';
 
 export function garage(): void {
@@ -28,6 +29,19 @@ export function garage(): void {
   if (session.online) listenInvites();
   warmUp();
   const saved = savedRun();
+  // brand new: offer the tutorial once
+  if (!saved && !tutorialSeen() && session.profile.stats.runs === 0)
+    setTimeout(() => {
+      const close = modal(
+        h(
+          'div.col',
+          { style: 'width:540px;text-align:center;align-items:center' },
+          h('h2', 'New to the water?'),
+          h('div', { style: 'font-size:18px' }, 'A two-minute tutorial at a practice pond: casting, the bite, reeling, bubbles, shoving a rival, and what all your gear does.'),
+          h('div.row', h('button', { onclick: () => (session.profile.tips.push('tutorial'), saveSoon(), close()) }, 'No thanks'), h('button.primary.big', { onclick: () => (close(), startTutorial()) }, 'Show me')),
+        ),
+      );
+    }, 500);
   if (saved)
     setTimeout(() => {
       const close = modal(
@@ -71,7 +85,7 @@ export function garage(): void {
           big('Fish with friends', session.online ? 'Up to four anglers on one lake.' : 'Sign in to fish with friends.', 'teal', () => (session.online ? coopHome() : toast('Sign in to fish with friends (Settings → Sign in).', 'bad')), '🚚'),
           h('div.row', small('🧰 Tackle', () => tackleBox()), small('🧸 Glovebox', () => glovebox()), small('📖 Fish log', () => fishLog())),
           h('div.row', small('🧢 Angler', () => anglerScreen()), small('🏆 Records', () => records()), small('⚙ Settings', () => settings())),
-          h('div.row', small('❓ How to play', () => howToPlay()), session.online ? small('👥 Friends', () => friendsModal()) : ''),
+          h('div.row', small('🎓 Tutorial', () => startTutorial()), small('❓ How to play', () => howToPlay()), session.online ? small('👥 Friends', () => friendsModal()) : ''),
         ),
         h('div.grow'),
         h(
@@ -124,6 +138,7 @@ export function howToPlay(): void {
         sec('👑', 'Marlene', 'She can show up at any hole: watch for a golden ripple. Cast into it for a chance she bites.', 'She is the hardest fish there is. Bring your biggest catch bar.'),
       ),
       h('div.small.dim', 'Esc or ⏸ pauses a solo run. Right-click (or Esc) takes back a cast you’re charging or waiting on. A/D walk, E shoves (with friends).'),
+      h('div.row', h('div.grow'), h('button', { onclick: () => (close(), gearGuide()) }, '🧰 Gear guide'), h('button.primary', { onclick: () => (close(), startTutorial()) }, '🎓 Play the tutorial')),
     ),
     { wide: true },
   );

@@ -17,6 +17,7 @@ import { saveSoon, session } from '../session';
 import { h, modal } from './dom';
 import type { Run } from './runner';
 import { charmIcon, ornCard, statSummary } from './widgets';
+import { gearGuide } from './tutorial';
 
 export function loadoutScreen(run: Run): void {
   const hole = run.hole;
@@ -111,7 +112,7 @@ export function loadoutScreen(run: Run): void {
         h(
           'div.panel.col',
           { style: 'width:660px;gap:6px;padding:18px' },
-          h('div.row', h('h2.grow', { style: 'font-size:32px' }, 'Pick your gear'), h('span.chip.good', `${fitsCount} piece${fitsCount === 1 ? '' : 's'} fit the mission`)),
+          h('div.row', h('h2.grow', { style: 'font-size:32px' }, 'Pick your gear'), h('button.tiny', { onclick: () => gearGuide(), title: 'What a rod, lure, bait, ornament and charm each do' }, 'What’s what?'), h('span.chip.good', `${fitsCount} piece${fitsCount === 1 ? '' : 's'} fit the mission`)),
           gearRow('rod'),
           gearRow('lure'),
           gearRow('bait'),
